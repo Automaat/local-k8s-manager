@@ -3,26 +3,8 @@ package tui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/automaat/local-k8s-manager/internal/backend"
 )
-
-// keyMsgHelp creates a KeyMsg from a string for testing
-func keyMsgHelp(s string) tea.KeyMsg {
-	switch s {
-	case "esc":
-		return tea.KeyMsg{Type: tea.KeyEsc}
-	case "ctrl+c":
-		return tea.KeyMsg{Type: tea.KeyCtrlC}
-	case "?":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
-	case "q":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
-	default:
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
-	}
-}
 
 func TestRenderHelpView(t *testing.T) {
 	m := Model{
@@ -77,7 +59,7 @@ func TestHandleHelpViewKeys(t *testing.T) {
 				previousView: tt.previousView,
 			}
 
-			newModel, cmd := m.handleHelpViewKeys(keyMsgHelp(tt.key))
+			newModel, cmd := m.handleHelpViewKeys(keyMsg(tt.key))
 			m = newModel.(Model)
 
 			if tt.shouldQuit {

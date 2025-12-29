@@ -4,35 +4,9 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/automaat/local-k8s-manager/internal/backend"
 	"github.com/automaat/local-k8s-manager/internal/models"
 )
-
-// keyMsgDetail creates a KeyMsg from a string for testing
-func keyMsgDetail(s string) tea.KeyMsg {
-	switch s {
-	case "esc":
-		return tea.KeyMsg{Type: tea.KeyEsc}
-	case "enter":
-		return tea.KeyMsg{Type: tea.KeyEnter}
-	case "ctrl+c":
-		return tea.KeyMsg{Type: tea.KeyCtrlC}
-	case "?":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
-	case "q":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
-	case "d":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}}
-	case "s":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
-	case "x":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
-	default:
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
-	}
-}
 
 func TestFormatDetailTime(t *testing.T) {
 	tests := []struct {
@@ -74,17 +48,14 @@ func TestRenderDetailView(t *testing.T) {
 	tests := []struct {
 		name            string
 		selectedCluster *models.Cluster
-		expected        string
 	}{
 		{
 			name:            "with cluster",
 			selectedCluster: cluster,
-			expected:        "",
 		},
 		{
 			name:            "no cluster",
 			selectedCluster: nil,
-			expected:        "No cluster selected",
 		},
 	}
 
@@ -180,7 +151,7 @@ func TestHandleDetailViewKeys(t *testing.T) {
 				selectedCluster: cluster,
 			}
 
-			newModel, cmd := m.handleDetailViewKeys(keyMsgDetail(tt.key))
+			newModel, cmd := m.handleDetailViewKeys(keyMsg(tt.key))
 			m = newModel.(Model)
 
 			if m.view != tt.expectedView {
@@ -214,7 +185,7 @@ func TestHandleDetailViewKeysWithoutCluster(t *testing.T) {
 		selectedCluster: nil,
 	}
 
-	newModel, _ := m.handleDetailViewKeys(tea.KeyMsg{Type: tea.KeyEnter})
+	newModel, _ := m.handleDetailViewKeys(keyMsg("enter"))
 	m = newModel.(Model)
 
 	if m.view != listView {

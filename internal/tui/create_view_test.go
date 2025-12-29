@@ -8,48 +8,6 @@ import (
 	"github.com/automaat/local-k8s-manager/internal/backend"
 )
 
-// keyMsg creates a KeyMsg from a string for testing
-func keyMsg(s string) tea.KeyMsg {
-	switch s {
-	case "esc":
-		return tea.KeyMsg{Type: tea.KeyEsc}
-	case "enter":
-		return tea.KeyMsg{Type: tea.KeyEnter}
-	case "tab":
-		return tea.KeyMsg{Type: tea.KeyTab}
-	case "shift+tab":
-		return tea.KeyMsg{Type: tea.KeyShiftTab}
-	case "up":
-		return tea.KeyMsg{Type: tea.KeyUp}
-	case "down":
-		return tea.KeyMsg{Type: tea.KeyDown}
-	case "backspace":
-		return tea.KeyMsg{Type: tea.KeyBackspace}
-	case "ctrl+c":
-		return tea.KeyMsg{Type: tea.KeyCtrlC}
-	case "?":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
-	case "q":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
-	case "j":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
-	case "k":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
-	case "c":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
-	case "d":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}}
-	case "s":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
-	case "x":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
-	case "r":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
-	default:
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
-	}
-}
-
 func TestNewCreateFormModel(t *testing.T) {
 	providers := []backend.Provider{
 		backend.NewK3dProvider(),
@@ -154,12 +112,12 @@ func TestHandleCreateViewKeys(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		key           string
-		initialForm   *createFormModel
-		expectedView  viewState
-		checkFormNil  bool
-		validateForm  func(*testing.T, *createFormModel)
+		name         string
+		key          string
+		initialForm  *createFormModel
+		expectedView viewState
+		checkFormNil bool
+		validateForm func(*testing.T, *createFormModel)
 	}{
 		{
 			name:         "esc key returns to list view",
@@ -259,9 +217,9 @@ func TestHandleCreateViewKeys(t *testing.T) {
 			},
 		},
 		{
-			name: "question mark shows help",
-			key:  "?",
-			initialForm: newCreateFormModel(providers),
+			name:         "question mark shows help",
+			key:          "?",
+			initialForm:  newCreateFormModel(providers),
 			expectedView: helpView,
 		},
 	}

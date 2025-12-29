@@ -4,53 +4,9 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/automaat/local-k8s-manager/internal/backend"
 	"github.com/automaat/local-k8s-manager/internal/models"
 )
-
-// keyMsg creates a KeyMsg from a string for testing
-func keyMsgList(s string) tea.KeyMsg {
-	switch s {
-	case "esc":
-		return tea.KeyMsg{Type: tea.KeyEsc}
-	case "enter":
-		return tea.KeyMsg{Type: tea.KeyEnter}
-	case "tab":
-		return tea.KeyMsg{Type: tea.KeyTab}
-	case "shift+tab":
-		return tea.KeyMsg{Type: tea.KeyShiftTab}
-	case "up":
-		return tea.KeyMsg{Type: tea.KeyUp}
-	case "down":
-		return tea.KeyMsg{Type: tea.KeyDown}
-	case "backspace":
-		return tea.KeyMsg{Type: tea.KeyBackspace}
-	case "ctrl+c":
-		return tea.KeyMsg{Type: tea.KeyCtrlC}
-	case "?":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
-	case "q":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
-	case "j":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
-	case "k":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
-	case "c":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
-	case "d":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}}
-	case "s":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
-	case "x":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
-	case "r":
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
-	default:
-		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
-	}
-}
 
 func TestFormatAge(t *testing.T) {
 	now := time.Now()
@@ -95,9 +51,8 @@ func TestRenderListView(t *testing.T) {
 	}
 
 	tests := []struct {
-		name     string
-		model    Model
-		expected string
+		name  string
+		model Model
 	}{
 		{
 			name: "no clusters loading",
@@ -107,7 +62,6 @@ func TestRenderListView(t *testing.T) {
 				width:     80,
 				providers: providers,
 			},
-			expected: "",
 		},
 		{
 			name: "no clusters not loading",
@@ -117,7 +71,6 @@ func TestRenderListView(t *testing.T) {
 				width:     80,
 				providers: providers,
 			},
-			expected: "",
 		},
 		{
 			name: "with clusters",
@@ -131,7 +84,6 @@ func TestRenderListView(t *testing.T) {
 				providers: providers,
 				cursor:    0,
 			},
-			expected: "",
 		},
 	}
 
@@ -315,7 +267,7 @@ func TestHandleListViewKeys(t *testing.T) {
 				cursor:    tt.initialCursor,
 			}
 
-			newModel, cmd := m.handleListViewKeys(keyMsgList(tt.key))
+			newModel, cmd := m.handleListViewKeys(keyMsg(tt.key))
 			m = newModel.(Model)
 
 			if m.cursor != tt.expectedCursor {
@@ -351,7 +303,7 @@ func TestHandleListViewKeysNoClusters(t *testing.T) {
 	// Test that delete/start/stop/enter do nothing when no clusters
 	keys := []string{"d", "s", "x", "enter"}
 	for _, key := range keys {
-		newModel, _ := m.handleListViewKeys(keyMsgList(key))
+		newModel, _ := m.handleListViewKeys(keyMsg(key))
 		m = newModel.(Model)
 
 		if m.view != listView {
