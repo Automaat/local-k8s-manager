@@ -56,7 +56,7 @@ func (e *DefaultExecutor) ExecStreaming(name string, args []string, outputChan c
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		stdout.Close()
+		_ = stdout.Close()
 		return "", err
 	}
 

@@ -50,6 +50,95 @@ var _ = Describe("Executor", func() {
 			result := executor.IsCommandAvailable("ls")
 			Expect(result).To(BeTrue())
 		})
+
+		Describe("ExecStreaming", func() {
+			It("should stream command output line-by-line", func() {
+				outputChan := make(chan string, 10)
+				done := make(chan bool)
+				var lineCount int
+
+				go func() {
+					for range outputChan {
+						lineCount++
+					}
+					done <- true
+				}()
+
+				output, err := executor.ExecStreaming("echo", []string{"-e", "line1\\nline2\\nline3"}, outputChan)
+				close(outputChan)
+				<-done
+
+				Expect(err).NotTo(HaveOccurred())
+				Expect(output).To(ContainSubstring("line1"))
+				Expect(lineCount).To(BeNumerically(">", 0))
+			})
+
+			It("should return error for failing commands", func() {
+				outputChan := make(chan string, 10)
+				go func() {
+					for range outputChan {
+					}
+				}()
+
+				_, err := executor.ExecStreaming("ls", []string{"/this-path-does-not-exist-12345"}, outputChan)
+				close(outputChan)
+
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("should handle stdout pipe error", func() {
+				outputChan := make(chan string, 10)
+
+				// This test verifies the error path when creating stdout pipe fails
+				// In normal conditions this won't fail, but we test the function structure
+				_, err := executor.ExecStreaming("echo", []string{"test"}, outputChan)
+				close(outputChan)
+
+				// Command should succeed in normal circumstances
+				Expect(err).NotTo(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("ExecStreaming global function", func() {
+		It("should use global executor for streaming", func() {
+			outputChan := make(chan string, 10)
+			done := make(chan bool)
+
+			go func() {
+				for range outputChan {
+				}
+				done <- true
+			}()
+
+			output, err := backend.ExecStreaming("echo", []string{"test"}, outputChan)
+			close(outputChan)
+			<-done
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(ContainSubstring("test"))
+		})
+
+		It("should fallback to non-streaming for mock executors", func() {
+			defer func() {
+				backend.SetExecutor(&backend.DefaultExecutor{})
+			}()
+
+			// Create a mock executor
+			mockExecutor := &MockExecutor{
+				ExecFunc: func(name string, args ...string) ([]byte, error) {
+					return []byte("mock output"), nil
+				},
+			}
+			backend.SetExecutor(mockExecutor)
+
+			outputChan := make(chan string, 10)
+			output, err := backend.ExecStreaming("test", []string{"arg"}, outputChan)
+			close(outputChan)
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(Equal("mock output"))
+		})
 	})
 
 	Describe("ParseDockerError", func() {

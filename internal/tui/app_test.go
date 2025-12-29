@@ -430,3 +430,128 @@ type testError struct {
 func (e *testError) Error() string {
 	return e.msg
 }
+
+func TestLogLineMsg(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+		logs:        "",
+	}
+	m.width = 100
+	m.height = 50
+
+	outputChan := make(chan string, 10)
+
+	msg := logLineMsg{
+		line:       "test log line",
+		outputChan: outputChan,
+	}
+
+	newModel, cmd := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.createForm.logs != "test log line" {
+		t.Errorf("expected logs to be 'test log line', got '%s'", m.createForm.logs)
+	}
+
+	if cmd == nil {
+		t.Error("expected command to wait for next log line")
+	}
+}
+
+func TestLogLineMsgAutoScroll(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep:  stepLogs,
+		logs:         "line1\nline2\nline3",
+		scrollOffset: 0,
+	}
+	m.width = 100
+	m.height = 50
+
+	outputChan := make(chan string, 10)
+
+	msg := logLineMsg{
+		line:       "line4",
+		outputChan: outputChan,
+	}
+
+	newModel, _ := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.createForm.logs != "line1\nline2\nline3\nline4" {
+		t.Errorf("expected logs to contain all lines, got '%s'", m.createForm.logs)
+	}
+}
+
+func TestOperationCompleteMsgCreate(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+	}
+	m.loading = true
+
+	msg := operationCompleteMsg{
+		operation: opCreate,
+		err:       nil,
+	}
+
+	newModel, cmd := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.loading {
+		t.Error("expected loading to be false")
+	}
+
+	if m.err != nil {
+		t.Error("expected no error")
+	}
+
+	if cmd != nil {
+		t.Error("expected no command for create operation")
+	}
+}
+
+func TestOperationCompleteMsgCreateWithError(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+	}
+	m.loading = true
+
+	msg := operationCompleteMsg{
+		operation: opCreate,
+		err:       errors.New("creation failed"),
+	}
+
+	newModel, _ := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.loading {
+		t.Error("expected loading to be false")
+	}
+
+	if m.err == nil {
+		t.Error("expected error to be set")
+	}
+}
