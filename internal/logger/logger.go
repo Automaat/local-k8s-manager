@@ -86,11 +86,17 @@ func writeEntry(entry map[string]interface{}) {
 
 	data, err := json.Marshal(entry)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "lkm: failed to marshal log entry: %v\n", err)
 		return
 	}
 
-	_, _ = logFile.Write(data)
-	_, _ = logFile.Write([]byte("\n"))
+	if _, err := logFile.Write(data); err != nil {
+		fmt.Fprintf(os.Stderr, "lkm: failed to write log entry: %v\n", err)
+		return
+	}
+	if _, err := logFile.Write([]byte("\n")); err != nil {
+		fmt.Fprintf(os.Stderr, "lkm: failed to write log newline: %v\n", err)
+	}
 }
 
 // Close closes the log file

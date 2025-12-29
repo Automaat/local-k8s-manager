@@ -53,7 +53,7 @@ func (p *KindProvider) List() ([]models.Cluster, error) {
 			Name:      line,
 			Provider:  "kind",
 			Status:    models.StatusRunning,
-			Nodes:     0, // kind doesn't provide node count in list
+			Nodes:     0, // kind get clusters output does not include node count; 0 means "unknown"
 			CreatedAt: time.Time{},
 		})
 	}
