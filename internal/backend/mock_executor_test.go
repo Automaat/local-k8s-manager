@@ -1,10 +1,7 @@
 package backend_test
 
 import (
-	"encoding/json"
 	"fmt"
-
-	"github.com/automaat/local-k8s-manager/internal/backend"
 )
 
 // MockExecutor is a mock implementation of CommandExecutor for testing
