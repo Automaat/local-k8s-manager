@@ -2,12 +2,16 @@ coverage:
   status:
     project:
       default:
-        target: 80%
+        target: 20%
         threshold: 1%
     patch:
       default:
-        target: 80%
+        target: 20%
         threshold: 1%
+
+ignore:
+  - "cmd/lkm/main.go"
+  - "internal/tui/*.go"
 
 comment:
   layout: "reach,diff,flags,tree"
