@@ -69,9 +69,29 @@ var _ = Describe("KindProvider", func() {
 		})
 
 		Context("when no clusters exist", func() {
-			It("should return empty list", func() {
+			It("should return empty list when command returns error with empty output", func() {
 				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
 					return []byte(""), errors.New("no clusters")
+				}
+
+				clusters, err := provider.List()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(clusters).To(HaveLen(0))
+			})
+
+			It("should return empty list when command returns error with 'No kind clusters found' message", func() {
+				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+					return []byte("No kind clusters found."), errors.New("exit status 1")
+				}
+
+				clusters, err := provider.List()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(clusters).To(HaveLen(0))
+			})
+
+			It("should return empty list when command succeeds with 'No kind clusters found' message", func() {
+				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+					return []byte("No kind clusters found."), nil
 				}
 
 				clusters, err := provider.List()
