@@ -27,8 +27,8 @@ func (m Model) renderListView() string {
 	}
 
 	// Calculate available height for bordered box
-	titleHeight := lipgloss.Height(title) + 2 // +2 for spacing
-	basePadding := 2                          // baseStyle padding top+bottom
+	titleHeight := lipgloss.Height(title) + 2                                                 // +2 for spacing
+	basePadding := 2                                                                          // baseStyle padding top+bottom
 	availableBoxHeight := m.height - titleHeight - helpHeight - errorHeight - basePadding - 1 // -1 for spacing before help
 	if availableBoxHeight < 3 {
 		availableBoxHeight = 3
