@@ -233,14 +233,15 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.createForm = nil
 			m.err = nil
 		} else {
-			// Go back to previous step
-			form.currentStep--
-			// Reset modification flags when going back to allow replacing defaults again
-			if form.currentStep == stepName {
+			// Reset modification flags for current step before going back
+			switch form.currentStep {
+			case stepName:
 				form.nameModified = false
-			} else if form.currentStep == stepWorkers {
+			case stepWorkers:
 				form.workersModified = false
 			}
+			// Go back to previous step
+			form.currentStep--
 			m.err = nil
 		}
 

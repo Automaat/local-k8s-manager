@@ -528,3 +528,119 @@ func TestHandleCreateViewKeysWithoutForm(t *testing.T) {
 		t.Errorf("expected listView when form is nil, got %v", m.view)
 	}
 }
+
+func TestFirstKeypressReplacesDefault(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	t.Run("name field replaces on first keypress", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:        providers,
+				selectedProvider: 0,
+				name:             "generated-name",
+				workers:          "1",
+				currentStep:      stepName,
+				nameModified:     false,
+			},
+			view: createView,
+		}
+
+		// First keypress should replace
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'t'}}
+		newModel, _ := m.handleCreateViewKeys(msg)
+		m = newModel.(Model)
+
+		if m.createForm.name != "t" {
+			t.Errorf("expected name 't' after first keypress, got %s", m.createForm.name)
+		}
+		if !m.createForm.nameModified {
+			t.Error("expected nameModified to be true after first keypress")
+		}
+
+		// Second keypress should append
+		msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}}
+		newModel, _ = m.handleCreateViewKeys(msg)
+		m = newModel.(Model)
+
+		if m.createForm.name != "te" {
+			t.Errorf("expected name 'te' after second keypress, got %s", m.createForm.name)
+		}
+	})
+
+	t.Run("workers field replaces on first keypress", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:        providers,
+				selectedProvider: 0,
+				name:             "test",
+				workers:          "1",
+				currentStep:      stepWorkers,
+				workersModified:  false,
+			},
+			view: createView,
+		}
+
+		// First keypress should replace
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}}
+		newModel, _ := m.handleCreateViewKeys(msg)
+		m = newModel.(Model)
+
+		if m.createForm.workers != "3" {
+			t.Errorf("expected workers '3' after first keypress, got %s", m.createForm.workers)
+		}
+		if !m.createForm.workersModified {
+			t.Error("expected workersModified to be true after first keypress")
+		}
+
+		// Second keypress should append
+		msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'5'}}
+		newModel, _ = m.handleCreateViewKeys(msg)
+		m = newModel.(Model)
+
+		if m.createForm.workers != "35" {
+			t.Errorf("expected workers '35' after second keypress, got %s", m.createForm.workers)
+		}
+	})
+
+	t.Run("going back resets modification flags", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:        providers,
+				selectedProvider: 0,
+				name:             "test",
+				workers:          "1",
+				currentStep:      stepWorkers,
+				nameModified:     true,
+				workersModified:  true,
+			},
+			view: createView,
+		}
+
+		// Go back from workers to name
+		newModel, _ := m.handleCreateViewKeys(keyMsg("esc"))
+		m = newModel.(Model)
+
+		if m.createForm.currentStep != stepName {
+			t.Errorf("expected to be on stepName, got %v", m.createForm.currentStep)
+		}
+		if m.createForm.workersModified {
+			t.Error("expected workersModified to be false after going back")
+		}
+
+		// Go back from name to provider
+		newModel, _ = m.handleCreateViewKeys(keyMsg("esc"))
+		m = newModel.(Model)
+
+		if m.createForm.currentStep != stepProvider {
+			t.Errorf("expected to be on stepProvider, got %v", m.createForm.currentStep)
+		}
+		if m.createForm.nameModified {
+			t.Error("expected nameModified to be false after going back")
+		}
+	})
+}
