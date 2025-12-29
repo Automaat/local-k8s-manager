@@ -2,8 +2,7 @@ package namegen
 
 import (
 	"fmt"
-	"math/rand"
-	"time"
+	"math/rand/v2"
 )
 
 var (
@@ -86,8 +85,7 @@ var (
 
 // Generate creates a random name in Docker's adjective_noun format
 func Generate() string {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	adjective := adjectives[rng.Intn(len(adjectives))]
-	noun := nouns[rng.Intn(len(nouns))]
+	adjective := adjectives[rand.IntN(len(adjectives))]
+	noun := nouns[rand.IntN(len(nouns))]
 	return fmt.Sprintf("%s-%s", adjective, noun)
 }
