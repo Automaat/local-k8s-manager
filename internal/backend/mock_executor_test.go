@@ -23,4 +23,3 @@ func (m *MockExecutor) IsCommandAvailable(name string) bool {
 	}
 	return false
 }
-
