@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -156,10 +157,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case logLineMsg:
 		// Append log line to the current form logs
 		if m.createForm != nil && m.createForm.currentStep == stepLogs {
+			// Check if we're at the bottom before adding new line
+			logLines := strings.Split(m.createForm.logs, "\n")
+			oldLineCount := len(logLines)
+
+			// Calculate if user was at bottom (within 2 lines)
+			boxHeight := 20
+			if m.height-10 < boxHeight {
+				boxHeight = m.height - 10
+				if boxHeight < 5 {
+					boxHeight = 5
+				}
+			}
+			visibleLines := boxHeight - 2
+			if visibleLines < 1 {
+				visibleLines = 1
+			}
+			maxOffset := oldLineCount - visibleLines
+			if maxOffset < 0 {
+				maxOffset = 0
+			}
+			wasAtBottom := (m.createForm.scrollOffset >= maxOffset-2)
+
+			// Add new line
 			if m.createForm.logs != "" {
 				m.createForm.logs += "\n"
 			}
 			m.createForm.logs += msg.line
+
+			// Auto-scroll to bottom if user was already at/near bottom
+			if wasAtBottom {
+				newLogLines := strings.Split(m.createForm.logs, "\n")
+				newMaxOffset := len(newLogLines) - visibleLines
+				if newMaxOffset < 0 {
+					newMaxOffset = 0
+				}
+				m.createForm.scrollOffset = newMaxOffset
+			}
 		}
 		// Continue waiting for more log lines
 		return m, waitForLogLine(msg.outputChan)

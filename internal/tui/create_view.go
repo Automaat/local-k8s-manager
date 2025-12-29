@@ -32,6 +32,7 @@ type createFormModel struct {
 	nameModified     bool
 	workersModified  bool
 	logs             string
+	scrollOffset     int // Line offset for scrolling logs
 }
 
 // newCreateFormModel creates a new create form model
@@ -238,7 +239,7 @@ func (m Model) renderStepLogs() string {
 	// Calculate content width
 	contentWidth := m.width - 6
 
-	// Show only last lines that fit in the box (auto-scroll)
+	// Show lines based on scroll offset
 	logLines := strings.Split(form.logs, "\n")
 	// Account for padding inside box (2 lines)
 	visibleLines := boxHeight - 2
@@ -246,11 +247,24 @@ func (m Model) renderStepLogs() string {
 		visibleLines = 1
 	}
 
-	startLine := 0
-	if len(logLines) > visibleLines {
-		startLine = len(logLines) - visibleLines
+	// Use scroll offset, clamped to valid range
+	startLine := form.scrollOffset
+	if startLine < 0 {
+		startLine = 0
 	}
-	visibleLogs := strings.Join(logLines[startLine:], "\n")
+	maxOffset := len(logLines) - visibleLines
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if startLine > maxOffset {
+		startLine = maxOffset
+	}
+
+	endLine := startLine + visibleLines
+	if endLine > len(logLines) {
+		endLine = len(logLines)
+	}
+	visibleLogs := strings.Join(logLines[startLine:endLine], "\n")
 
 	// Wrap logs in bordered box with fixed height
 	logBox := listBoxStyle.
@@ -263,9 +277,9 @@ func (m Model) renderStepLogs() string {
 	b.WriteString("\n")
 
 	// Help
-	helpText := "Enter: continue • Esc: back to list"
+	helpText := "↑/↓ j/k: scroll • Enter: continue • Esc: back to list"
 	if m.loading {
-		helpText = m.spinner.View() + " Creating cluster..."
+		helpText = m.spinner.View() + " Creating cluster... • ↑/↓ j/k: scroll"
 	}
 	help := helpStyle.Render(helpText)
 	b.WriteString(help)
@@ -318,14 +332,19 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		return m.handleEnterKey()
 
-	case "up":
+	case "up", "k":
 		if form.currentStep == stepProvider && form.selectedProvider > 0 {
 			form.selectedProvider--
+		} else if form.currentStep == stepLogs && form.scrollOffset > 0 {
+			form.scrollOffset--
 		}
 
-	case "down":
+	case "down", "j":
 		if form.currentStep == stepProvider && form.selectedProvider < len(form.providers)-1 {
 			form.selectedProvider++
+		} else if form.currentStep == stepLogs {
+			// Allow scrolling down (renderStepLogs will clamp it)
+			form.scrollOffset++
 		}
 
 	case "backspace":
