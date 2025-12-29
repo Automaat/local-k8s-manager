@@ -11,43 +11,73 @@ import (
 
 // renderListView renders the cluster list view
 func (m Model) renderListView() string {
-	var b strings.Builder
-
 	// Title
 	title := titleStyle.Render("Local Kubernetes Manager")
-	b.WriteString(title)
-	b.WriteString("\n\n")
 
-	// Render table
+	// Render help footer
+	help := m.renderListHelp()
+	helpHeight := lipgloss.Height(help)
+
+	// Render error message if present
+	var errorMsg string
+	errorHeight := 0
+	if m.err != nil {
+		errorMsg = renderError(m.err, m.width)
+		errorHeight = lipgloss.Height(errorMsg) + 1 // +1 for spacing
+	}
+
+	// Calculate available height for bordered box
+	titleHeight := lipgloss.Height(title) + 2 // +2 for spacing
+	basePadding := 2                          // baseStyle padding top+bottom
+	availableBoxHeight := m.height - titleHeight - helpHeight - errorHeight - basePadding
+	if availableBoxHeight < 3 {
+		availableBoxHeight = 3
+	}
+
+	// Render table content
+	var tableContent strings.Builder
 	if len(m.clusters) == 0 {
 		if m.loading {
-			msg := infoStyle.Render(m.spinner.View() + " Loading clusters...")
-			b.WriteString(msg)
+			msg := m.spinner.View() + " Loading clusters..."
+			tableContent.WriteString(msg)
 		} else {
-			msg := infoStyle.Render("No clusters found. Press 'c' to create one.")
-			b.WriteString(msg)
+			msg := "No clusters found. Press 'c' to create one."
+			tableContent.WriteString(msg)
 		}
 	} else {
-		b.WriteString(m.renderClusterTable())
+		tableContent.WriteString(m.renderClusterTable())
 		if m.loading {
-			b.WriteString("\n")
-			msg := infoStyle.Render(m.spinner.View() + " Refreshing...")
-			b.WriteString(msg)
+			tableContent.WriteString("\n\n")
+			msg := m.spinner.View() + " Refreshing..."
+			tableContent.WriteString(msg)
 		}
 	}
 
-	b.WriteString("\n\n")
+	// Calculate content width and set box to fill remaining space
+	// Subtract baseStyle padding (4) + border (2)
+	contentWidth := m.width - 6
 
-	// Error message
+	// Wrap table in bordered box with calculated dimensions
+	// Use Inline(false) and Width to make box fill the space
+	borderedTable := listBoxStyle.
+		Width(contentWidth).
+		Height(availableBoxHeight).
+		Inline(false).
+		Render(tableContent.String())
+
+	// Build final output
+	var final strings.Builder
+	final.WriteString(title)
+	final.WriteString("\n\n")
+	final.WriteString(borderedTable)
 	if m.err != nil {
-		b.WriteString(renderError(m.err, m.width))
-		b.WriteString("\n")
+		final.WriteString("\n")
+		final.WriteString(errorMsg)
 	}
+	final.WriteString("\n")
+	final.WriteString(help)
 
-	// Help
-	b.WriteString(m.renderListHelp())
-
-	return baseStyle.Render(b.String())
+	return baseStyle.Render(final.String())
 }
 
 // renderClusterTable renders the cluster table
