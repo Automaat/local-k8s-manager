@@ -45,14 +45,13 @@ var (
 
 	// Help style
 	helpStyle = lipgloss.NewStyle().
-			Foreground(colorGray).
-			Padding(1, 0)
+			Foreground(colorGray)
 
 	// Title style
 	titleStyle = lipgloss.NewStyle().
 			Foreground(colorBlue).
 			Bold(true).
-			Padding(1, 2)
+			PaddingTop(1)
 
 	// Error message style
 	errorMessageStyle = lipgloss.NewStyle().
@@ -64,6 +63,12 @@ var (
 	infoStyle = lipgloss.NewStyle().
 			Foreground(colorGray).
 			Padding(0, 2)
+
+	// Border box style for cluster list
+	listBoxStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colorBlue).
+			Padding(1, 2)
 )
 
 // StatusStyle returns the appropriate style for a cluster status
