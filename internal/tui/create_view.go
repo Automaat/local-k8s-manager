@@ -182,6 +182,10 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		return m, createClusterCmd(m.providers, provider.Name(), form.name, workers)
 
+	case "?":
+		m.previousView = createView
+		m.view = helpView
+
 	case "backspace":
 		if form.focusedField == nameField && len(form.name) > 0 {
 			form.name = form.name[:len(form.name)-1]

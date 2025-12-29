@@ -61,11 +61,12 @@ func NewModel(providers []backend.Provider) Model {
 	s.Style = lipgloss.NewStyle().Foreground(colorBlue)
 
 	return Model{
-		view:      listView,
-		providers: providers,
-		clusters:  []models.Cluster{},
-		loading:   true,
-		spinner:   s,
+		view:         listView,
+		providers:    providers,
+		clusters:     []models.Cluster{},
+		loading:      true,
+		spinner:      s,
+		previousView: listView,
 	}
 }
 
