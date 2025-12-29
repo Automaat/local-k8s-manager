@@ -28,8 +28,8 @@ func TestNewCreateFormModel(t *testing.T) {
 		t.Errorf("expected selectedProvider to be 0, got %d", form.selectedProvider)
 	}
 
-	if form.name != "" {
-		t.Errorf("expected empty name, got %s", form.name)
+	if form.name == "" {
+		t.Error("expected generated name, got empty string")
 	}
 
 	if form.workers != "1" {

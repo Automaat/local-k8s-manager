@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/automaat/local-k8s-manager/internal/backend"
+	"github.com/automaat/local-k8s-manager/internal/namegen"
 )
 
 // createStep represents the current step in the multi-step wizard
@@ -34,7 +35,7 @@ func newCreateFormModel(providers []backend.Provider) *createFormModel {
 	return &createFormModel{
 		providers:        providers,
 		selectedProvider: 0,
-		name:             "",
+		name:             namegen.Generate(),
 		workers:          "1",
 		currentStep:      stepProvider,
 	}
