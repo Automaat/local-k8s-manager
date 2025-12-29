@@ -66,7 +66,7 @@ func (m Model) renderStepProvider() string {
 	form := m.createForm
 
 	// Title with step indicator
-	title := titleStyle.Render(fmt.Sprintf("Create New Cluster (Step 1/4)"))
+	title := titleStyle.Render("Create New Cluster (Step 1/4)")
 	b.WriteString(title)
 	b.WriteString("\n\n")
 
@@ -107,7 +107,7 @@ func (m Model) renderStepName() string {
 	form := m.createForm
 
 	// Title with step indicator
-	title := titleStyle.Render(fmt.Sprintf("Create New Cluster (Step 2/4)"))
+	title := titleStyle.Render("Create New Cluster (Step 2/4)")
 	b.WriteString(title)
 	b.WriteString("\n\n")
 
@@ -142,7 +142,7 @@ func (m Model) renderStepWorkers() string {
 	form := m.createForm
 
 	// Title with step indicator
-	title := titleStyle.Render(fmt.Sprintf("Create New Cluster (Step 3/4)"))
+	title := titleStyle.Render("Create New Cluster (Step 3/4)")
 	b.WriteString(title)
 	b.WriteString("\n\n")
 
@@ -173,7 +173,7 @@ func (m Model) renderStepReview() string {
 	form := m.createForm
 
 	// Title with step indicator
-	title := titleStyle.Render(fmt.Sprintf("Create New Cluster (Step 4/4)"))
+	title := titleStyle.Render("Create New Cluster (Step 4/4)")
 	b.WriteString(title)
 	b.WriteString("\n\n")
 
