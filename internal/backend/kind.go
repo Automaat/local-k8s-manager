@@ -30,12 +30,14 @@ func (p *KindProvider) IsInstalled() bool {
 // List returns all kind clusters
 func (p *KindProvider) List() ([]models.Cluster, error) {
 	output, err := Exec("kind", "get", "clusters")
+
+	// kind may return "No kind clusters found" with either exit code 0 or non-zero
+	// in both cases we should return an empty list instead of an error
+	if bytes.Contains(output, []byte("No kind clusters found")) || len(output) == 0 {
+		return []models.Cluster{}, nil
+	}
+
 	if err != nil {
-		// kind returns non-zero exit code when no clusters exist
-		// but we should return empty list instead of error
-		if bytes.Contains(output, []byte("No kind clusters found")) || len(output) == 0 {
-			return []models.Cluster{}, nil
-		}
 		return nil, fmt.Errorf("failed to list kind clusters: %w", err)
 	}
 
