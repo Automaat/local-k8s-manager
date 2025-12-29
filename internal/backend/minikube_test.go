@@ -1,50 +1,225 @@
-package backend
+package backend_test
 
 import (
-	"testing"
+	"encoding/json"
+	"errors"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/automaat/local-k8s-manager/internal/backend"
 	"github.com/automaat/local-k8s-manager/internal/models"
 )
 
-func TestMinikubeProvider_Name(t *testing.T) {
-	p := NewMinikubeProvider()
-	if p.Name() != "minikube" {
-		t.Errorf("expected name 'minikube', got '%s'", p.Name())
-	}
-}
+var _ = Describe("MinikubeProvider", func() {
+	var (
+		provider     *backend.MinikubeProvider
+		mockExecutor *MockExecutor
+	)
 
-func TestMinikubeProvider_IsInstalled(t *testing.T) {
-	p := NewMinikubeProvider()
-	result := p.IsInstalled()
-	_ = result
-}
+	BeforeEach(func() {
+		provider = backend.NewMinikubeProvider()
+		mockExecutor = &MockExecutor{}
+		backend.SetExecutor(mockExecutor)
+	})
 
-func TestNewMinikubeProvider(t *testing.T) {
-	p := NewMinikubeProvider()
-	if p == nil {
-		t.Error("NewMinikubeProvider() returned nil")
-	}
-}
+	AfterEach(func() {
+		backend.SetExecutor(&backend.DefaultExecutor{})
+	})
 
-func TestParseMinikubeStatus(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected models.Status
-	}{
-		{"running status", "Running", models.StatusRunning},
-		{"stopped status", "Stopped", models.StatusStopped},
-		{"paused status", "Paused", models.StatusUnknown},
-		{"unknown status", "SomeOtherStatus", models.StatusUnknown},
-		{"empty status", "", models.StatusUnknown},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseMinikubeStatus(tt.input)
-			if result != tt.expected {
-				t.Errorf("parseMinikubeStatus(%s) = %s, expected %s", tt.input, result, tt.expected)
-			}
+	Describe("Name", func() {
+		It("should return minikube", func() {
+			Expect(provider.Name()).To(Equal("minikube"))
 		})
-	}
-}
+	})
+
+	Describe("IsInstalled", func() {
+		Context("when minikube is available", func() {
+			It("should return true", func() {
+				mockExecutor.IsCommandAvailableFunc = func(name string) bool {
+					return name == "minikube"
+				}
+				Expect(provider.IsInstalled()).To(BeTrue())
+			})
+		})
+
+		Context("when minikube is not available", func() {
+			It("should return false", func() {
+				mockExecutor.IsCommandAvailableFunc = func(name string) bool {
+					return false
+				}
+				Expect(provider.IsInstalled()).To(BeFalse())
+			})
+		})
+	})
+
+	Describe("List", func() {
+		Context("when command succeeds", func() {
+			It("should return list of clusters", func() {
+				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+					response := map[string]interface{}{
+						"valid": []map[string]interface{}{
+							{
+								"Name":   "test-cluster",
+								"Status": "Running",
+								"Config": map[string]interface{}{
+									"Nodes": []map[string]interface{}{
+										{"Name": "node1"},
+										{"Name": "node2"},
+									},
+								},
+							},
+						},
+					}
+					return json.Marshal(response)
+				}
+
+				clusters, err := provider.List()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(clusters).To(HaveLen(1))
+				Expect(clusters[0].Name).To(Equal("test-cluster"))
+				Expect(clusters[0].Status).To(Equal(models.StatusRunning))
+				Expect(clusters[0].Nodes).To(Equal(2))
+			})
+		})
+
+		Context("when no clusters exist", func() {
+			It("should return empty list", func() {
+				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+					return []byte(""), errors.New("no profiles")
+				}
+
+				clusters, err := provider.List()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(clusters).To(HaveLen(0))
+			})
+		})
+
+		Context("when command fails with output", func() {
+			It("should try to parse output", func() {
+				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+					// Even with error, if there's valid JSON, it should parse
+					response := map[string]interface{}{
+						"valid": []map[string]interface{}{},
+					}
+					data, _ := json.Marshal(response)
+					return data, errors.New("some error")
+				}
+
+				clusters, err := provider.List()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(clusters).To(HaveLen(0))
+			})
+		})
+
+		Context("when JSON is invalid", func() {
+			It("should return error", func() {
+				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+					return []byte("invalid json"), nil
+				}
+
+				_, err := provider.List()
+				Expect(err).To(HaveOccurred())
+			})
+		})
+	})
+
+	Describe("Create", func() {
+		It("should create cluster without workers", func() {
+			var capturedArgs []string
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				capturedArgs = args
+				return []byte("success"), nil
+			}
+
+			err := provider.Create("test-cluster", backend.CreateOptions{Workers: 0})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(capturedArgs).To(ContainElements("start", "--profile", "test-cluster"))
+			Expect(capturedArgs).NotTo(ContainElement("--nodes"))
+		})
+
+		It("should create cluster with workers", func() {
+			var capturedArgs []string
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				capturedArgs = args
+				return []byte("success"), nil
+			}
+
+			err := provider.Create("test-cluster", backend.CreateOptions{Workers: 2})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(capturedArgs).To(ContainElements("--nodes", "3")) // 2 workers + 1 control plane
+		})
+
+		It("should return error on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return nil, errors.New("failed")
+			}
+
+			err := provider.Create("test", backend.CreateOptions{})
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("Delete", func() {
+		It("should delete cluster", func() {
+			var capturedArgs []string
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				capturedArgs = args
+				return []byte("success"), nil
+			}
+
+			err := provider.Delete("test-cluster")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(capturedArgs).To(ContainElements("delete", "-p", "test-cluster"))
+		})
+
+		It("should return error on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return nil, errors.New("failed")
+			}
+
+			err := provider.Delete("test")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("Start", func() {
+		It("should start cluster", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("success"), nil
+			}
+
+			err := provider.Start("test-cluster")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should return error on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return nil, errors.New("failed")
+			}
+
+			err := provider.Start("test")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("Stop", func() {
+		It("should stop cluster", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("success"), nil
+			}
+
+			err := provider.Stop("test-cluster")
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should return error on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return nil, errors.New("failed")
+			}
+
+			err := provider.Stop("test")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+})

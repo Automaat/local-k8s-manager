@@ -1,50 +1,17 @@
-package backend
+package backend_test
 
 import (
-	"testing"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/automaat/local-k8s-manager/internal/backend"
 )
 
-func TestCreateOptions(t *testing.T) {
-	opts := CreateOptions{
-		Workers: 3,
-	}
-
-	if opts.Workers != 3 {
-		t.Errorf("expected Workers to be 3, got %d", opts.Workers)
-	}
-}
-
-func TestProviderNames(t *testing.T) {
-	tests := []struct {
-		name     string
-		provider Provider
-	}{
-		{"k3d provider", NewK3dProvider()},
-		{"kind provider", NewKindProvider()},
-		{"minikube provider", NewMinikubeProvider()},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			name := tt.provider.Name()
-			if name == "" {
-				t.Errorf("Provider.Name() returned empty string")
-			}
+var _ = Describe("Interface", func() {
+	Describe("CreateOptions", func() {
+		It("should store workers count", func() {
+			opts := backend.CreateOptions{Workers: 3}
+			Expect(opts.Workers).To(Equal(3))
 		})
-	}
-}
-
-func TestProviderIsInstalled(t *testing.T) {
-	providers := []Provider{
-		NewK3dProvider(),
-		NewKindProvider(),
-		NewMinikubeProvider(),
-	}
-
-	for _, p := range providers {
-		t.Run(p.Name(), func(t *testing.T) {
-			// Just verify it doesn't panic
-			_ = p.IsInstalled()
-		})
-	}
-}
+	})
+})

@@ -1,42 +1,54 @@
-package backend
+package backend_test
 
 import (
-	"testing"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	"github.com/automaat/local-k8s-manager/internal/backend"
 )
 
-func TestIsCommandAvailable(t *testing.T) {
-	tests := []struct {
-		name     string
-		command  string
-		expected bool
-	}{
-		{"existing command - ls", "ls", true},
-		{"non-existing command", "this-command-does-not-exist-12345", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := IsCommandAvailable(tt.command)
-			if result != tt.expected {
-				t.Errorf("IsCommandAvailable(%s) = %v, expected %v", tt.command, result, tt.expected)
-			}
+var _ = Describe("Executor", func() {
+	Describe("IsCommandAvailable", func() {
+		It("should return true for existing commands", func() {
+			result := backend.IsCommandAvailable("ls")
+			Expect(result).To(BeTrue())
 		})
-	}
-}
 
-func TestExec(t *testing.T) {
-	// Test successful command
-	output, err := Exec("echo", "test")
-	if err != nil {
-		t.Errorf("Exec(echo, test) failed: %v", err)
-	}
-	if len(output) == 0 {
-		t.Error("Exec(echo, test) returned empty output")
-	}
+		It("should return false for non-existing commands", func() {
+			result := backend.IsCommandAvailable("this-command-does-not-exist-12345")
+			Expect(result).To(BeFalse())
+		})
+	})
 
-	// Test failing command
-	_, err = Exec("ls", "/this-path-does-not-exist-12345")
-	if err == nil {
-		t.Error("Exec(ls, /nonexistent) should have failed")
-	}
-}
+	Describe("Exec", func() {
+		It("should execute commands successfully", func() {
+			output, err := backend.Exec("echo", "test")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).NotTo(BeEmpty())
+		})
+
+		It("should return error for failing commands", func() {
+			_, err := backend.Exec("ls", "/this-path-does-not-exist-12345")
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Describe("DefaultExecutor", func() {
+		var executor *backend.DefaultExecutor
+
+		BeforeEach(func() {
+			executor = &backend.DefaultExecutor{}
+		})
+
+		It("should execute commands", func() {
+			output, err := executor.Exec("echo", "test")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(output).NotTo(BeEmpty())
+		})
+
+		It("should check command availability", func() {
+			result := executor.IsCommandAvailable("ls")
+			Expect(result).To(BeTrue())
+		})
+	})
+})

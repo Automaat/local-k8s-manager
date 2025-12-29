@@ -7,8 +7,17 @@ import (
 	"github.com/automaat/local-k8s-manager/internal/logger"
 )
 
+// CommandExecutor is an interface for executing commands
+type CommandExecutor interface {
+	Exec(name string, args ...string) ([]byte, error)
+	IsCommandAvailable(name string) bool
+}
+
+// DefaultExecutor is the default implementation of CommandExecutor
+type DefaultExecutor struct{}
+
 // Exec executes a command and returns its combined output
-func Exec(name string, args ...string) ([]byte, error) {
+func (e *DefaultExecutor) Exec(name string, args ...string) ([]byte, error) {
 	start := time.Now()
 	cmd := exec.Command(name, args...)
 	output, err := cmd.CombinedOutput()
@@ -30,7 +39,25 @@ func Exec(name string, args ...string) ([]byte, error) {
 }
 
 // IsCommandAvailable checks if a command is available in PATH
-func IsCommandAvailable(name string) bool {
+func (e *DefaultExecutor) IsCommandAvailable(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+// Global executor instance (can be replaced for testing)
+var executor CommandExecutor = &DefaultExecutor{}
+
+// Exec is a convenience function that uses the global executor
+func Exec(name string, args ...string) ([]byte, error) {
+	return executor.Exec(name, args...)
+}
+
+// IsCommandAvailable is a convenience function that uses the global executor
+func IsCommandAvailable(name string) bool {
+	return executor.IsCommandAvailable(name)
+}
+
+// SetExecutor sets the global executor (for testing)
+func SetExecutor(e CommandExecutor) {
+	executor = e
 }
