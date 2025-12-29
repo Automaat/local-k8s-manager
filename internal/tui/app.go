@@ -66,6 +66,11 @@ type operationCompleteMsg struct {
 	output    string
 }
 
+type logLineMsg struct {
+	line       string
+	outputChan <-chan string
+}
+
 // NewModel creates a new TUI model
 func NewModel(providers []backend.Provider) Model {
 	s := spinner.New()
@@ -129,20 +134,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle create operation specially
 		if msg.operation == opCreate {
 			if msg.err != nil {
-				// Creation failed - stay in create view and show error
-				m.view = createView
+				// Creation failed - go back to review and show error
 				if m.createForm != nil {
 					m.createForm.currentStep = stepReview
 				}
 				m.err = msg.err
 				return m, nil
 			} else {
-				// Creation succeeded - show logs screen
-				m.view = createView
-				if m.createForm != nil {
-					m.createForm.currentStep = stepLogs
-					m.createForm.logs = msg.output
-				}
+				// Creation succeeded - we're already on logs screen showing streamed output
+				// Just stop loading indicator
 				m.err = nil
 				return m, nil
 			}
@@ -152,6 +152,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return m, loadClustersCmd(m.providers)
+
+	case logLineMsg:
+		// Append log line to the current form logs
+		if m.createForm != nil && m.createForm.currentStep == stepLogs {
+			if m.createForm.logs != "" {
+				m.createForm.logs += "\n"
+			}
+			m.createForm.logs += msg.line
+		}
+		// Continue waiting for more log lines
+		return m, waitForLogLine(msg.outputChan)
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -314,30 +325,55 @@ func stopClusterCmd(providers []backend.Provider, clusterName, providerName stri
 	}
 }
 
-// createClusterCmd creates a new cluster
-func createClusterCmd(providers []backend.Provider, providerName, name string, workers int) tea.Cmd {
-	return func() tea.Msg {
-		var provider backend.Provider
-		for _, p := range providers {
-			if p.Name() == providerName {
-				provider = p
-				break
+// createClusterStreamingCmd creates a cluster and streams output via messages
+func createClusterStreamingCmd(providers []backend.Provider, providerName, name string, workers int) tea.Cmd {
+	// Create output channel for streaming
+	outputChan := make(chan string, 100)
+
+	// Return batch of commands: one to read from channel, one to execute
+	return tea.Batch(
+		// Command to wait for log lines
+		waitForLogLine(outputChan),
+		// Command to execute cluster creation
+		func() tea.Msg {
+			var provider backend.Provider
+			for _, p := range providers {
+				if p.Name() == providerName {
+					provider = p
+					break
+				}
 			}
+
+			if provider == nil {
+				close(outputChan)
+				return operationCompleteMsg{operation: opCreate, err: nil, output: ""}
+			}
+
+			// Execute with streaming
+			output, err := provider.Create(name, backend.CreateOptions{Workers: workers}, outputChan)
+			close(outputChan)
+
+			logger.Log("cluster.create", map[string]interface{}{
+				"provider": providerName,
+				"name":     name,
+				"workers":  workers,
+				"error":    err,
+			})
+
+			return operationCompleteMsg{operation: opCreate, err: err, output: output}
+		},
+	)
+}
+
+// waitForLogLine waits for a log line from the channel and returns it as a message
+func waitForLogLine(outputChan <-chan string) tea.Cmd {
+	return func() tea.Msg {
+		line, ok := <-outputChan
+		if !ok {
+			// Channel closed, no more lines
+			return nil
 		}
-
-		if provider == nil {
-			return operationCompleteMsg{operation: opCreate, err: nil, output: ""}
-		}
-
-		output, err := provider.Create(name, backend.CreateOptions{Workers: workers})
-		logger.Log("cluster.create", map[string]interface{}{
-			"provider": providerName,
-			"name":     name,
-			"workers":  workers,
-			"error":    err,
-		})
-
-		return operationCompleteMsg{operation: opCreate, err: err, output: output}
+		return logLineMsg{line: line, outputChan: outputChan}
 	}
 }
 

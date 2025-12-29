@@ -15,7 +15,8 @@ type Provider interface {
 
 	// Create creates a new cluster with the given name and options
 	// Returns the command output and any error
-	Create(name string, opts CreateOptions) (string, error)
+	// If outputChan is provided, output will be streamed line-by-line
+	Create(name string, opts CreateOptions, outputChan ...chan<- string) (string, error)
 
 	// Delete removes a cluster
 	Delete(name string) error

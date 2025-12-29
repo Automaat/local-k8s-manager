@@ -226,30 +226,48 @@ func (m Model) renderStepLogs() string {
 	b.WriteString(title)
 	b.WriteString("\n\n")
 
-	// Calculate available height for log box
-	titleHeight := 3 // title + spacing
-	helpHeight := 1  // help text
-	basePadding := 4 // baseStyle padding
-	availableBoxHeight := m.height - titleHeight - helpHeight - basePadding - 2
-	if availableBoxHeight < 5 {
-		availableBoxHeight = 5
+	// Fixed box height
+	boxHeight := 20
+	if m.height-10 < boxHeight {
+		boxHeight = m.height - 10
+		if boxHeight < 5 {
+			boxHeight = 5
+		}
 	}
 
 	// Calculate content width
 	contentWidth := m.width - 6
 
-	// Wrap logs in bordered box
+	// Show only last lines that fit in the box (auto-scroll)
+	logLines := strings.Split(form.logs, "\n")
+	// Account for padding inside box (2 lines)
+	visibleLines := boxHeight - 2
+	if visibleLines < 1 {
+		visibleLines = 1
+	}
+
+	startLine := 0
+	if len(logLines) > visibleLines {
+		startLine = len(logLines) - visibleLines
+	}
+	visibleLogs := strings.Join(logLines[startLine:], "\n")
+
+	// Wrap logs in bordered box with fixed height
 	logBox := listBoxStyle.
 		Width(contentWidth).
-		Height(availableBoxHeight).
+		Height(boxHeight).
 		Inline(false).
-		Render(form.logs)
+		Render(visibleLogs)
 
 	b.WriteString(logBox)
 	b.WriteString("\n")
 
 	// Help
-	help := helpStyle.Render("Enter: continue • Esc: back to list")
+	helpText := "Enter: continue • Esc: back to list"
+	if m.loading {
+		helpText = m.spinner.View() + " Creating cluster..."
+	}
+	help := helpStyle.Render(helpText)
 	b.WriteString(help)
 
 	return baseStyle.Render(b.String())
@@ -373,14 +391,16 @@ func (m Model) handleEnterKey() (tea.Model, tea.Cmd) {
 		m.err = nil
 
 	case stepReview:
-		// Create cluster
-		workers, _ := strconv.Atoi(form.workers)
-		provider := form.providers[form.selectedProvider]
+		// Immediately show logs screen
+		form.currentStep = stepLogs
+		form.logs = ""
 		m.loading = true
 		m.err = nil
 
-		// Don't clear form or switch views yet - wait for success/failure
-		return m, createClusterCmd(m.providers, provider.Name(), form.name, workers)
+		// Start cluster creation with streaming
+		workers, _ := strconv.Atoi(form.workers)
+		provider := form.providers[form.selectedProvider]
+		return m, createClusterStreamingCmd(m.providers, provider.Name(), form.name, workers)
 
 	case stepLogs:
 		// Return to list view and refresh clusters
