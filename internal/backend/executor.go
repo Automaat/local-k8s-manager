@@ -5,6 +5,7 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/automaat/local-k8s-manager/internal/logger"
@@ -42,7 +43,8 @@ func (e *DefaultExecutor) Exec(name string, args ...string) ([]byte, error) {
 }
 
 // ExecStreaming executes a command and streams output line-by-line to a channel
-// Returns the full output and any error. The output channel is closed when command completes.
+// Returns the full output and any error.
+// Note: The caller is responsible for closing the output channel.
 func (e *DefaultExecutor) ExecStreaming(name string, args []string, outputChan chan<- string) (string, error) {
 	start := time.Now()
 	cmd := exec.Command(name, args...)
@@ -54,6 +56,7 @@ func (e *DefaultExecutor) ExecStreaming(name string, args []string, outputChan c
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		stdout.Close()
 		return "", err
 	}
 
@@ -63,6 +66,7 @@ func (e *DefaultExecutor) ExecStreaming(name string, args []string, outputChan c
 	}
 
 	var fullOutput strings.Builder
+	var mutex sync.Mutex
 
 	// Read stdout and stderr concurrently
 	done := make(chan bool, 2)
@@ -71,8 +75,10 @@ func (e *DefaultExecutor) ExecStreaming(name string, args []string, outputChan c
 		scanner := bufio.NewScanner(pipe)
 		for scanner.Scan() {
 			line := scanner.Text()
+			mutex.Lock()
 			fullOutput.WriteString(line)
 			fullOutput.WriteString("\n")
+			mutex.Unlock()
 			outputChan <- line
 		}
 		done <- true

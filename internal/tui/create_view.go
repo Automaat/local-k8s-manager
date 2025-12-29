@@ -240,31 +240,36 @@ func (m Model) renderStepLogs() string {
 	contentWidth := m.width - 6
 
 	// Show lines based on scroll offset
-	logLines := strings.Split(form.logs, "\n")
-	// Account for padding inside box (2 lines)
-	visibleLines := boxHeight - 2
-	if visibleLines < 1 {
-		visibleLines = 1
-	}
+	var visibleLogs string
+	if form.logs == "" {
+		visibleLogs = "Waiting for output..."
+	} else {
+		logLines := strings.Split(form.logs, "\n")
+		// Account for padding inside box (2 lines)
+		visibleLines := boxHeight - 2
+		if visibleLines < 1 {
+			visibleLines = 1
+		}
 
-	// Use scroll offset, clamped to valid range
-	startLine := form.scrollOffset
-	if startLine < 0 {
-		startLine = 0
-	}
-	maxOffset := len(logLines) - visibleLines
-	if maxOffset < 0 {
-		maxOffset = 0
-	}
-	if startLine > maxOffset {
-		startLine = maxOffset
-	}
+		// Use scroll offset, clamped to valid range
+		startLine := form.scrollOffset
+		if startLine < 0 {
+			startLine = 0
+		}
+		maxOffset := len(logLines) - visibleLines
+		if maxOffset < 0 {
+			maxOffset = 0
+		}
+		if startLine > maxOffset {
+			startLine = maxOffset
+		}
 
-	endLine := startLine + visibleLines
-	if endLine > len(logLines) {
-		endLine = len(logLines)
+		endLine := startLine + visibleLines
+		if endLine > len(logLines) {
+			endLine = len(logLines)
+		}
+		visibleLogs = strings.Join(logLines[startLine:endLine], "\n")
 	}
-	visibleLogs := strings.Join(logLines[startLine:endLine], "\n")
 
 	// Wrap logs in bordered box with fixed height
 	logBox := listBoxStyle.
@@ -275,6 +280,12 @@ func (m Model) renderStepLogs() string {
 
 	b.WriteString(logBox)
 	b.WriteString("\n")
+
+	// Error message if creation failed
+	if m.err != nil {
+		b.WriteString(renderError(m.err, m.width))
+		b.WriteString("\n")
+	}
 
 	// Help
 	helpText := "↑/↓ j/k: scroll • Enter: continue • Esc: back to list"
@@ -302,24 +313,28 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "esc":
 		// Go back to previous step or cancel
-		if form.currentStep == stepProvider {
+		switch form.currentStep {
+		case stepProvider:
 			// Cancel entire form
 			m.view = listView
 			m.createForm = nil
 			m.err = nil
-		} else if form.currentStep == stepLogs {
+		case stepLogs:
 			// From logs view, go back to list view
 			m.view = listView
 			m.createForm = nil
 			m.err = nil
-		} else {
-			// Reset modification flags for current step before going back
-			switch form.currentStep {
-			case stepName:
-				form.nameModified = false
-			case stepWorkers:
-				form.workersModified = false
-			}
+		case stepName:
+			// Reset modification flag and go back
+			form.nameModified = false
+			form.currentStep--
+			m.err = nil
+		case stepWorkers:
+			// Reset modification flag and go back
+			form.workersModified = false
+			form.currentStep--
+			m.err = nil
+		default:
 			// Go back to previous step
 			form.currentStep--
 			m.err = nil

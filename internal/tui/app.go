@@ -134,19 +134,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Handle create operation specially
 		if msg.operation == opCreate {
-			if msg.err != nil {
-				// Creation failed - go back to review and show error
-				if m.createForm != nil {
-					m.createForm.currentStep = stepReview
-				}
-				m.err = msg.err
-				return m, nil
-			} else {
-				// Creation succeeded - we're already on logs screen showing streamed output
-				// Just stop loading indicator
-				m.err = nil
-				return m, nil
-			}
+			// We're already on logs screen showing streamed output
+			// Just stop loading indicator and set error if any
+			m.err = msg.err
+			return m, nil
 		} else {
 			// For other operations, just set error
 			m.err = msg.err
