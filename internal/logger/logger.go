@@ -9,8 +9,14 @@ import (
 	"time"
 )
 
+const (
+	maxLogSize  = 10 * 1024 * 1024 // 10MB
+	maxLogFiles = 3
+)
+
 var (
 	logFile *os.File
+	logPath string
 	mu      sync.Mutex
 	enabled bool
 )
@@ -32,7 +38,7 @@ func Init() error {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	logPath := filepath.Join(logDir, "lkm.log")
+	logPath = filepath.Join(logDir, "lkm.log")
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
@@ -84,6 +90,11 @@ func writeEntry(entry map[string]interface{}) {
 		return
 	}
 
+	// Check if rotation is needed
+	if err := rotateIfNeeded(); err != nil {
+		fmt.Fprintf(os.Stderr, "lkm: failed to rotate log: %v\n", err)
+	}
+
 	data, err := json.Marshal(entry)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "lkm: failed to marshal log entry: %v\n", err)
@@ -97,6 +108,59 @@ func writeEntry(entry map[string]interface{}) {
 	if _, err := logFile.Write([]byte("\n")); err != nil {
 		fmt.Fprintf(os.Stderr, "lkm: failed to write log newline: %v\n", err)
 	}
+}
+
+// rotateIfNeeded checks if the log file exceeds maxLogSize and rotates if necessary
+// Must be called with mu held
+func rotateIfNeeded() error {
+	if logPath == "" || logFile == nil {
+		return nil
+	}
+
+	info, err := logFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	if info.Size() < maxLogSize {
+		return nil
+	}
+
+	// Close current log file
+	if err := logFile.Close(); err != nil {
+		return err
+	}
+
+	// Rotate existing log files
+	for i := maxLogFiles - 1; i >= 1; i-- {
+		oldPath := fmt.Sprintf("%s.%d", logPath, i)
+		newPath := fmt.Sprintf("%s.%d", logPath, i+1)
+		_ = os.Rename(oldPath, newPath)
+	}
+
+	// Move current log to .1
+	if err := os.Rename(logPath, logPath+".1"); err != nil {
+		// Set logFile to nil to prevent writes to closed file
+		logFile = nil
+		enabled = false
+		return err
+	}
+
+	// Remove oldest log file if it exists
+	oldestPath := fmt.Sprintf("%s.%d", logPath, maxLogFiles+1)
+	_ = os.Remove(oldestPath)
+
+	// Open new log file
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		// Set logFile to nil to prevent writes to closed file
+		logFile = nil
+		enabled = false
+		return err
+	}
+
+	logFile = f
+	return nil
 }
 
 // Close closes the log file
