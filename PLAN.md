@@ -508,7 +508,7 @@ Create `.goreleaser.yml` for:
 - Multi-platform builds
 - GitHub releases
 - Homebrew tap
-- Archive creation![alt text](image-1.png)
+- Archive creation
 
 ## Logging Details
 
