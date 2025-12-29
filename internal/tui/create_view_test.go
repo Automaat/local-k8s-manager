@@ -75,6 +75,65 @@ func TestRenderCreateViewWithoutForm(t *testing.T) {
 	}
 }
 
+func TestRenderCreateViewUnknownStep(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := Model{
+		createForm: &createFormModel{
+			providers:        providers,
+			selectedProvider: 0,
+			name:             "test",
+			workers:          "1",
+			currentStep:      createStep(999), // Invalid step
+		},
+		width: 80,
+	}
+
+	result := m.renderCreateView()
+
+	if result != "Unknown step" {
+		t.Errorf("expected 'Unknown step', got %s", result)
+	}
+}
+
+func TestRenderCreateViewAllSteps(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	tests := []struct {
+		name string
+		step createStep
+	}{
+		{"step provider", stepProvider},
+		{"step name", stepName},
+		{"step workers", stepWorkers},
+		{"step review", stepReview},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := Model{
+				createForm: &createFormModel{
+					providers:        providers,
+					selectedProvider: 0,
+					name:             "test",
+					workers:          "1",
+					currentStep:      tt.step,
+				},
+				width: 80,
+			}
+
+			result := m.renderCreateView()
+			if result == "" {
+				t.Error("expected non-empty result")
+			}
+		})
+	}
+}
+
 func TestRenderStepProvider(t *testing.T) {
 	providers := []backend.Provider{
 		backend.NewK3dProvider(),
