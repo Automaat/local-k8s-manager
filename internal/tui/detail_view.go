@@ -65,6 +65,7 @@ func (m Model) renderDetailHelp() string {
 		"d: delete",
 		"s: start",
 		"x: stop",
+		"?: help",
 		"q: quit",
 	}
 
@@ -100,6 +101,10 @@ func (m Model) handleDetailViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "x":
 		m.loading = true
 		return m, stopClusterCmd(m.providers, m.selectedCluster.Name, m.selectedCluster.Provider)
+
+	case "?":
+		m.previousView = detailView
+		m.view = helpView
 	}
 
 	return m, nil

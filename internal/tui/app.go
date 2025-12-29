@@ -3,6 +3,7 @@ package tui
 import (
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -18,6 +19,7 @@ const (
 	listView viewState = iota
 	detailView
 	createView
+	helpView
 )
 
 const refreshInterval = 5 * time.Second
@@ -32,10 +34,12 @@ type Model struct {
 	height    int
 	err       error
 	loading   bool
+	spinner   spinner.Model
 
 	// View-specific state
 	selectedCluster *models.Cluster
 	createForm      *createFormModel
+	previousView    viewState
 }
 
 // Message types
@@ -52,11 +56,16 @@ type operationCompleteMsg struct {
 
 // NewModel creates a new TUI model
 func NewModel(providers []backend.Provider) Model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(colorBlue)
+
 	return Model{
 		view:      listView,
 		providers: providers,
 		clusters:  []models.Cluster{},
 		loading:   true,
+		spinner:   s,
 	}
 }
 
@@ -65,6 +74,7 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		loadClustersCmd(m.providers),
 		tickCmd(),
+		m.spinner.Tick,
 	)
 }
 
@@ -104,6 +114,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.err
 		m.loading = false
 		return m, loadClustersCmd(m.providers)
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
@@ -122,6 +137,8 @@ func (m Model) View() string {
 		return m.renderDetailView()
 	case createView:
 		return m.renderCreateView()
+	case helpView:
+		return m.renderHelpView()
 	}
 
 	return ""
@@ -136,6 +153,8 @@ func (m Model) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDetailViewKeys(msg)
 	case createView:
 		return m.handleCreateViewKeys(msg)
+	case helpView:
+		return m.handleHelpViewKeys(msg)
 	}
 	return m, nil
 }
