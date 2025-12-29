@@ -39,6 +39,11 @@ func (p *KindProvider) List() ([]models.Cluster, error) {
 		return nil, fmt.Errorf("failed to list kind clusters: %w", err)
 	}
 
+	// Check for "no clusters" message even when exit code is 0
+	if bytes.Contains(output, []byte("No kind clusters found")) || len(output) == 0 {
+		return []models.Cluster{}, nil
+	}
+
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	clusters := make([]models.Cluster, 0, len(lines))
 
