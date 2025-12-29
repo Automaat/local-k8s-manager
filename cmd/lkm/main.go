@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"github.com/automaat/local-k8s-manager/internal/backend"
 	"github.com/automaat/local-k8s-manager/internal/logger"
+	"github.com/automaat/local-k8s-manager/internal/tui"
 )
 
 func main() {
@@ -46,7 +49,16 @@ func main() {
 		"providers": providerNames,
 	})
 
-	fmt.Println("lkm - Local Kubernetes Manager")
-	fmt.Printf("Available providers: %v\n", providerNames)
-	fmt.Println("TUI coming soon...")
+	// Run TUI
+	p := tea.NewProgram(
+		tui.NewModel(available),
+		tea.WithAltScreen(),
+	)
+
+	if _, err := p.Run(); err != nil {
+		logger.LogError("fatal", err, nil)
+		fmt.Printf("Error: %v\n", err)
+		logger.Close()
+		os.Exit(1)
+	}
 }
