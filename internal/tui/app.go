@@ -90,10 +90,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tickMsg:
-		return m, tea.Batch(
-			loadClustersCmd(m.providers),
-			tickCmd(),
-		)
+		// Only auto-refresh clusters when in list view to avoid unnecessary API calls
+		if m.view == listView {
+			return m, tea.Batch(
+				loadClustersCmd(m.providers),
+				tickCmd(),
+			)
+		}
+		// In other views, keep the ticker running but skip the refresh
+		return m, tickCmd()
 
 	case operationCompleteMsg:
 		m.err = msg.err

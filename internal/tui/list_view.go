@@ -94,7 +94,8 @@ func (m Model) renderClusterTable() string {
 
 		// Highlight selected row
 		if i == m.cursor {
-			rowStr = selectedStyle.Width(providerWidth + nameWidth + statusWidth + nodesWidth + ageWidth + 8).Render(rowStr)
+			rowWidth := lipgloss.Width(rowStr)
+			rowStr = selectedStyle.Width(rowWidth).Render(rowStr)
 		}
 
 		rows = append(rows, rowStr)

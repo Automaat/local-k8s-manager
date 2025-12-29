@@ -17,6 +17,7 @@ const (
 	providerField formField = iota
 	nameField
 	workersField
+	numFormFields
 )
 
 // createFormModel holds the state of the create cluster form
@@ -145,10 +146,10 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.err = nil
 
 	case "tab":
-		form.focusedField = (form.focusedField + 1) % 3
+		form.focusedField = (form.focusedField + 1) % numFormFields
 
 	case "shift+tab":
-		form.focusedField = (form.focusedField + 2) % 3
+		form.focusedField = (form.focusedField + numFormFields - 1) % numFormFields
 
 	case "up":
 		if form.focusedField == providerField && form.selectedProvider > 0 {
@@ -169,7 +170,7 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		workers, err := strconv.Atoi(form.workers)
 		if err != nil || workers < 0 {
-			m.err = fmt.Errorf("workers must be a valid number")
+			m.err = fmt.Errorf("workers must be a non-negative number")
 			return m, nil
 		}
 
