@@ -110,6 +110,26 @@ var _ = Describe("KindProvider", func() {
 			err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("should return Docker error when Docker daemon is not running", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("Cannot connect to the Docker daemon"), errors.New("exit status 1")
+			}
+
+			err := provider.Create("test", backend.CreateOptions{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
+		})
+
+		It("should return command output on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("cluster name already exists"), errors.New("exit status 1")
+			}
+
+			err := provider.Create("test", backend.CreateOptions{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cluster name already exists"))
+		})
 	})
 
 	Describe("Delete", func() {
@@ -129,6 +149,26 @@ var _ = Describe("KindProvider", func() {
 
 			err := provider.Delete("test")
 			Expect(err).To(HaveOccurred())
+		})
+
+		It("should return Docker error when Docker daemon is not running", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("Docker daemon is not running"), errors.New("exit status 1")
+			}
+
+			err := provider.Delete("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
+		})
+
+		It("should return command output on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("cluster not found"), errors.New("exit status 1")
+			}
+
+			err := provider.Delete("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cluster not found"))
 		})
 	})
 
