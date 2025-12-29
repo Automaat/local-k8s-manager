@@ -29,9 +29,9 @@ func (p *K3dProvider) IsInstalled() bool {
 
 // K3dCluster represents the JSON structure from k3d cluster list
 type K3dCluster struct {
-	Name        string      `json:"name"`
-	Nodes       []K3dNode   `json:"nodes"`
-	ServerCount int         `json:"serversCount"`
+	Name        string    `json:"name"`
+	Nodes       []K3dNode `json:"nodes"`
+	ServerCount int       `json:"serversCount"`
 }
 
 // K3dNode represents a k3d node

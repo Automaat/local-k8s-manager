@@ -27,35 +27,3 @@ func (m *MockExecutor) IsCommandAvailable(name string) bool {
 	return false
 }
 
-// Helper functions for common mock responses
-func mockK3dListResponse() []byte {
-	clusters := []backend.K3dCluster{
-		{
-			Name: "test-cluster",
-			Nodes: []backend.K3dNode{
-				{Name: "node1", Role: "server", State: backend.K3dNodeState{Running: true}},
-				{Name: "node2", Role: "agent", State: backend.K3dNodeState{Running: true}},
-			},
-			ServerCount: 1,
-		},
-	}
-	data, _ := json.Marshal(clusters)
-	return data
-}
-
-func mockMinikubeListResponse() []byte {
-	response := map[string]interface{}{
-		"valid": []map[string]interface{}{
-			{
-				"Name":   "test-cluster",
-				"Status": "Running",
-				"Nodes": []map[string]interface{}{
-					{"Name": "node1"},
-					{"Name": "node2"},
-				},
-			},
-		},
-	}
-	data, _ := json.Marshal(response)
-	return data
-}
