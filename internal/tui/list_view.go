@@ -21,7 +21,7 @@ func (m Model) renderListView() string {
 	// Render table
 	if len(m.clusters) == 0 {
 		if m.loading {
-			msg := infoStyle.Render("Loading clusters...")
+			msg := infoStyle.Render(m.spinner.View() + " Loading clusters...")
 			b.WriteString(msg)
 		} else {
 			msg := infoStyle.Render("No clusters found. Press 'c' to create one.")
@@ -29,6 +29,11 @@ func (m Model) renderListView() string {
 		}
 	} else {
 		b.WriteString(m.renderClusterTable())
+		if m.loading {
+			b.WriteString("\n")
+			msg := infoStyle.Render(m.spinner.View() + " Refreshing...")
+			b.WriteString(msg)
+		}
 	}
 
 	b.WriteString("\n\n")
@@ -171,6 +176,10 @@ func (m Model) handleListViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.selectedCluster = &m.clusters[m.cursor]
 			m.view = detailView
 		}
+
+	case "?":
+		m.previousView = listView
+		m.view = helpView
 	}
 
 	return m, nil

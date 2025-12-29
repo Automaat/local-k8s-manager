@@ -27,19 +27,23 @@ func (p *K3dProvider) IsInstalled() bool {
 	return IsCommandAvailable("k3d")
 }
 
-// k3dCluster represents the JSON structure from k3d cluster list
-type k3dCluster struct {
+// K3dCluster represents the JSON structure from k3d cluster list
+type K3dCluster struct {
 	Name        string    `json:"name"`
-	Nodes       []k3dNode `json:"nodes"`
+	Nodes       []K3dNode `json:"nodes"`
 	ServerCount int       `json:"serversCount"`
 }
 
-type k3dNode struct {
-	Name  string `json:"name"`
-	Role  string `json:"role"`
-	State struct {
-		Running bool `json:"running"`
-	} `json:"state"`
+// K3dNode represents a k3d node
+type K3dNode struct {
+	Name  string       `json:"name"`
+	Role  string       `json:"role"`
+	State K3dNodeState `json:"state"`
+}
+
+// K3dNodeState represents the state of a k3d node
+type K3dNodeState struct {
+	Running bool `json:"running"`
 }
 
 // List returns all k3d clusters
@@ -49,7 +53,7 @@ func (p *K3dProvider) List() ([]models.Cluster, error) {
 		return nil, fmt.Errorf("failed to list k3d clusters: %w", err)
 	}
 
-	var k3dClusters []k3dCluster
+	var k3dClusters []K3dCluster
 	if err := json.Unmarshal(output, &k3dClusters); err != nil {
 		return nil, fmt.Errorf("failed to parse k3d output: %w", err)
 	}
