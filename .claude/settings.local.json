@@ -10,7 +10,9 @@
       "Bash(git push:*)",
       "Bash(gh pr create:*)",
       "Bash(gh api:*)",
-      "Bash(go test:*)"
+      "Bash(go test:*)",
+      "Bash(.git/info/exclude)",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []

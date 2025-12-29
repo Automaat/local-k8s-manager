@@ -165,16 +165,9 @@ func TestLogRotation(t *testing.T) {
 	}
 	defer Close()
 
-	// Write entries until rotation occurs
-	// Each entry is roughly 100 bytes, so we need ~100k entries to reach 10MB
-	// For testing, we'll temporarily reduce the max size
-	oldMaxSize := maxLogSize
-	defer func() {
-		// Can't actually change const, but this shows intent
-		_ = oldMaxSize
-	}()
-
-	// Create a large log file by writing directly
+	// For this test we artificially trigger rotation by writing directly to the
+	// underlying log file handle until its size exceeds maxLogSize, then calling
+	// Log once to cause the rotation logic to run.
 	largeData := make([]byte, maxLogSize+1000)
 	for i := range largeData {
 		largeData[i] = 'a'
@@ -187,19 +180,36 @@ func TestLogRotation(t *testing.T) {
 	// Now log something, which should trigger rotation
 	Log("test.after.rotation", map[string]interface{}{"test": "value"})
 
-	// Check if rotated file exists
+	// Verify rotation occurred by checking:
+	// 1. Rotated file exists and contains the large data
 	rotatedPath := logPath + ".1"
-	if _, err := os.Stat(rotatedPath); os.IsNotExist(err) {
-		t.Error("Rotated log file should exist")
+	rotatedInfo, err := os.Stat(rotatedPath)
+	if os.IsNotExist(err) {
+		t.Fatal("Rotated log file should exist")
+	}
+	if err != nil {
+		t.Fatalf("Failed to stat rotated file: %v", err)
+	}
+	if rotatedInfo.Size() < maxLogSize {
+		t.Errorf("Rotated file should contain the large data, got %d bytes", rotatedInfo.Size())
 	}
 
-	// Check if new log file is small
+	// 2. New log file is small and contains the logged entry
 	info, err := os.Stat(logPath)
 	if err != nil {
-		t.Fatalf("Failed to stat log file: %v", err)
+		t.Fatalf("Failed to stat new log file: %v", err)
 	}
 	if info.Size() > 1000 {
 		t.Errorf("New log file should be small, got %d bytes", info.Size())
+	}
+
+	// 3. New log file contains the entry we just logged
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("Failed to read new log file: %v", err)
+	}
+	if !strings.Contains(string(content), "test.after.rotation") {
+		t.Error("New log file should contain the entry logged after rotation")
 	}
 }
 

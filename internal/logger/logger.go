@@ -140,6 +140,9 @@ func rotateIfNeeded() error {
 
 	// Move current log to .1
 	if err := os.Rename(logPath, logPath+".1"); err != nil {
+		// Set logFile to nil to prevent writes to closed file
+		logFile = nil
+		enabled = false
 		return err
 	}
 
@@ -150,6 +153,9 @@ func rotateIfNeeded() error {
 	// Open new log file
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
+		// Set logFile to nil to prevent writes to closed file
+		logFile = nil
+		enabled = false
 		return err
 	}
 

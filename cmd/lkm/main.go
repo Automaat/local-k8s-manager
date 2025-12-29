@@ -33,6 +33,7 @@ func main() {
 		fmt.Println("No cluster tools found.")
 		fmt.Println("Install one of: k3d, kind, minikube")
 		logger.LogError("startup", fmt.Errorf("no cluster tools found"), nil)
+		logger.Close()
 		os.Exit(1)
 	}
 
