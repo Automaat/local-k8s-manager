@@ -86,24 +86,25 @@ func (p *K3dProvider) List() ([]models.Cluster, error) {
 }
 
 // Create creates a new k3d cluster
-func (p *K3dProvider) Create(name string, opts CreateOptions) error {
+func (p *K3dProvider) Create(name string, opts CreateOptions) (string, error) {
 	args := []string{"cluster", "create", name}
 	if opts.Workers > 0 {
 		args = append(args, "--agents", strconv.Itoa(opts.Workers))
 	}
 
 	output, err := Exec("k3d", args...)
+	outputStr := string(output)
 	if err != nil {
 		if len(output) > 0 {
 			// Check for Docker errors first
-			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
-				return fmt.Errorf("%s", dockerErr)
+			if dockerErr := ParseDockerError(outputStr); dockerErr != "" {
+				return outputStr, fmt.Errorf("%s", dockerErr)
 			}
-			return fmt.Errorf("failed to create k3d cluster: %s", string(output))
+			return outputStr, fmt.Errorf("failed to create k3d cluster: %s", outputStr)
 		}
-		return fmt.Errorf("failed to create k3d cluster: %w", err)
+		return outputStr, fmt.Errorf("failed to create k3d cluster: %w", err)
 	}
-	return nil
+	return outputStr, nil
 }
 
 // Delete deletes a k3d cluster

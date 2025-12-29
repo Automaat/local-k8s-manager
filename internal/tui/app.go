@@ -63,6 +63,7 @@ type tickMsg time.Time
 type operationCompleteMsg struct {
 	operation operationType
 	err       error
+	output    string
 }
 
 // NewModel creates a new TUI model
@@ -136,10 +137,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.err = msg.err
 				return m, nil
 			} else {
-				// Creation succeeded - switch to list view and clear form
-				m.view = listView
-				m.createForm = nil
+				// Creation succeeded - show logs screen
+				m.view = createView
+				if m.createForm != nil {
+					m.createForm.currentStep = stepLogs
+					m.createForm.logs = msg.output
+				}
 				m.err = nil
+				return m, nil
 			}
 		} else {
 			// For other operations, just set error
@@ -321,10 +326,10 @@ func createClusterCmd(providers []backend.Provider, providerName, name string, w
 		}
 
 		if provider == nil {
-			return operationCompleteMsg{operation: opCreate, err: nil}
+			return operationCompleteMsg{operation: opCreate, err: nil, output: ""}
 		}
 
-		err := provider.Create(name, backend.CreateOptions{Workers: workers})
+		output, err := provider.Create(name, backend.CreateOptions{Workers: workers})
 		logger.Log("cluster.create", map[string]interface{}{
 			"provider": providerName,
 			"name":     name,
@@ -332,7 +337,7 @@ func createClusterCmd(providers []backend.Provider, providerName, name string, w
 			"error":    err,
 		})
 
-		return operationCompleteMsg{operation: opCreate, err: err}
+		return operationCompleteMsg{operation: opCreate, err: err, output: output}
 	}
 }
 

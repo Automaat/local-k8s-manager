@@ -152,8 +152,9 @@ var _ = Describe("K3dProvider", func() {
 				return []byte("success"), nil
 			}
 
-			err := provider.Create("test-cluster", backend.CreateOptions{Workers: 0})
+			output, err := provider.Create("test-cluster", backend.CreateOptions{Workers: 0})
 			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(Equal("success"))
 			Expect(capturedArgs).To(ContainElement("test-cluster"))
 			Expect(capturedArgs).NotTo(ContainElement("--agents"))
 		})
@@ -165,8 +166,9 @@ var _ = Describe("K3dProvider", func() {
 				return []byte("success"), nil
 			}
 
-			err := provider.Create("test-cluster", backend.CreateOptions{Workers: 2})
+			output, err := provider.Create("test-cluster", backend.CreateOptions{Workers: 2})
 			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(Equal("success"))
 			Expect(capturedArgs).To(ContainElements("--agents", "2"))
 		})
 
@@ -175,8 +177,9 @@ var _ = Describe("K3dProvider", func() {
 				return nil, errors.New("failed")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal(""))
 		})
 
 		It("should return Docker error when Docker daemon is not running", func() {
@@ -184,8 +187,9 @@ var _ = Describe("K3dProvider", func() {
 				return []byte("Cannot connect to the Docker daemon"), errors.New("exit status 1")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal("Cannot connect to the Docker daemon"))
 			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
 		})
 
@@ -194,8 +198,9 @@ var _ = Describe("K3dProvider", func() {
 				return []byte("some specific error message"), errors.New("exit status 1")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal("some specific error message"))
 			Expect(err.Error()).To(ContainSubstring("some specific error message"))
 		})
 	})

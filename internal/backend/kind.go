@@ -64,23 +64,24 @@ func (p *KindProvider) List() ([]models.Cluster, error) {
 }
 
 // Create creates a new kind cluster
-func (p *KindProvider) Create(name string, opts CreateOptions) error {
+func (p *KindProvider) Create(name string, opts CreateOptions) (string, error) {
 	args := []string{"create", "cluster", "--name", name}
 
 	// kind doesn't have a simple worker flag, would need config file
 	// ignoring worker count for now as per plan (CLI form only)
 
 	output, err := Exec("kind", args...)
+	outputStr := string(output)
 	if err != nil {
 		if len(output) > 0 {
-			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
-				return fmt.Errorf("%s", dockerErr)
+			if dockerErr := ParseDockerError(outputStr); dockerErr != "" {
+				return outputStr, fmt.Errorf("%s", dockerErr)
 			}
-			return fmt.Errorf("failed to create kind cluster: %s", string(output))
+			return outputStr, fmt.Errorf("failed to create kind cluster: %s", outputStr)
 		}
-		return fmt.Errorf("failed to create kind cluster: %w", err)
+		return outputStr, fmt.Errorf("failed to create kind cluster: %w", err)
 	}
-	return nil
+	return outputStr, nil
 }
 
 // Delete deletes a kind cluster

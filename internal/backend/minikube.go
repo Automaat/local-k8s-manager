@@ -92,7 +92,7 @@ func parseMinikubeStatus(status string) models.Status {
 }
 
 // Create creates a new minikube cluster
-func (p *MinikubeProvider) Create(name string, opts CreateOptions) error {
+func (p *MinikubeProvider) Create(name string, opts CreateOptions) (string, error) {
 	args := []string{"start", "--profile", name}
 	if opts.Workers > 0 {
 		// minikube uses --nodes for total node count (control-plane + workers)
@@ -101,16 +101,17 @@ func (p *MinikubeProvider) Create(name string, opts CreateOptions) error {
 	}
 
 	output, err := Exec("minikube", args...)
+	outputStr := string(output)
 	if err != nil {
 		if len(output) > 0 {
-			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
-				return fmt.Errorf("%s", dockerErr)
+			if dockerErr := ParseDockerError(outputStr); dockerErr != "" {
+				return outputStr, fmt.Errorf("%s", dockerErr)
 			}
-			return fmt.Errorf("failed to create minikube cluster: %s", string(output))
+			return outputStr, fmt.Errorf("failed to create minikube cluster: %s", outputStr)
 		}
-		return fmt.Errorf("failed to create minikube cluster: %w", err)
+		return outputStr, fmt.Errorf("failed to create minikube cluster: %w", err)
 	}
-	return nil
+	return outputStr, nil
 }
 
 // Delete deletes a minikube cluster

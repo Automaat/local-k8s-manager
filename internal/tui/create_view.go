@@ -19,6 +19,7 @@ const (
 	stepName
 	stepWorkers
 	stepReview
+	stepLogs
 )
 
 // createFormModel holds the state of the create cluster form
@@ -30,6 +31,7 @@ type createFormModel struct {
 	currentStep      createStep
 	nameModified     bool
 	workersModified  bool
+	logs             string
 }
 
 // newCreateFormModel creates a new create form model
@@ -58,6 +60,8 @@ func (m Model) renderCreateView() string {
 		return m.renderStepWorkers()
 	case stepReview:
 		return m.renderStepReview()
+	case stepLogs:
+		return m.renderStepLogs()
 	default:
 		return "Unknown step"
 	}
@@ -212,6 +216,45 @@ func (m Model) renderStepReview() string {
 	return baseStyle.Render(b.String())
 }
 
+// renderStepLogs renders step 5: creation logs
+func (m Model) renderStepLogs() string {
+	var b strings.Builder
+	form := m.createForm
+
+	// Title
+	title := titleStyle.Render("Cluster Creation Logs")
+	b.WriteString(title)
+	b.WriteString("\n\n")
+
+	// Calculate available height for log box
+	titleHeight := 3 // title + spacing
+	helpHeight := 1  // help text
+	basePadding := 4 // baseStyle padding
+	availableBoxHeight := m.height - titleHeight - helpHeight - basePadding - 2
+	if availableBoxHeight < 5 {
+		availableBoxHeight = 5
+	}
+
+	// Calculate content width
+	contentWidth := m.width - 6
+
+	// Wrap logs in bordered box
+	logBox := listBoxStyle.
+		Width(contentWidth).
+		Height(availableBoxHeight).
+		Inline(false).
+		Render(form.logs)
+
+	b.WriteString(logBox)
+	b.WriteString("\n")
+
+	// Help
+	help := helpStyle.Render("Enter: continue • Esc: back to list")
+	b.WriteString(help)
+
+	return baseStyle.Render(b.String())
+}
+
 // handleCreateViewKeys handles keyboard input in create view
 func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.createForm == nil {
@@ -229,6 +272,11 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Go back to previous step or cancel
 		if form.currentStep == stepProvider {
 			// Cancel entire form
+			m.view = listView
+			m.createForm = nil
+			m.err = nil
+		} else if form.currentStep == stepLogs {
+			// From logs view, go back to list view
 			m.view = listView
 			m.createForm = nil
 			m.err = nil
@@ -333,6 +381,13 @@ func (m Model) handleEnterKey() (tea.Model, tea.Cmd) {
 
 		// Don't clear form or switch views yet - wait for success/failure
 		return m, createClusterCmd(m.providers, provider.Name(), form.name, workers)
+
+	case stepLogs:
+		// Return to list view and refresh clusters
+		m.view = listView
+		m.createForm = nil
+		m.err = nil
+		return m, loadClustersCmd(m.providers)
 	}
 
 	return m, nil
