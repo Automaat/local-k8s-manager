@@ -32,6 +32,10 @@ jobs:
         run: go test ./... -v -race -coverprofile=coverage.out
       - name: Upload coverage
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.out
+          fail_ci_if_error: true
 
   build:
     runs-on: ubuntu-latest
