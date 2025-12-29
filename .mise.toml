@@ -1,0 +1,18 @@
+[tools]
+go = "1.23"
+golangci-lint = "2.7.2"
+
+[tasks.test]
+run = "go test ./... -v -race -cover"
+
+[tasks.lint]
+run = "golangci-lint run"
+
+[tasks.build]
+run = "go build -o bin/lkm cmd/lkm/main.go"
+
+[tasks.run]
+run = "go run cmd/lkm/main.go"
+
+[tasks.install]
+run = "go install ./cmd/lkm"
