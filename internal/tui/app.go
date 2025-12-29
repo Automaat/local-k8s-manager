@@ -42,6 +42,16 @@ type Model struct {
 	previousView    viewState
 }
 
+// operationType represents the type of operation in progress
+type operationType int
+
+const (
+	opCreate operationType = iota
+	opDelete
+	opStart
+	opStop
+)
+
 // Message types
 type clustersLoadedMsg struct {
 	clusters []models.Cluster
@@ -51,7 +61,8 @@ type clustersLoadedMsg struct {
 type tickMsg time.Time
 
 type operationCompleteMsg struct {
-	err error
+	operation operationType
+	err       error
 }
 
 // NewModel creates a new TUI model
@@ -112,8 +123,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tickCmd()
 
 	case operationCompleteMsg:
-		m.err = msg.err
 		m.loading = false
+
+		// Handle create operation specially
+		if msg.operation == opCreate {
+			if msg.err != nil {
+				// Creation failed - stay in create view and show error
+				m.view = createView
+				if m.createForm != nil {
+					m.createForm.currentStep = stepReview
+				}
+				m.err = msg.err
+				return m, nil
+			} else {
+				// Creation succeeded - switch to list view and clear form
+				m.view = listView
+				m.createForm = nil
+				m.err = nil
+			}
+		} else {
+			// For other operations, just set error
+			m.err = msg.err
+		}
+
 		return m, loadClustersCmd(m.providers)
 
 	case spinner.TickMsg:
@@ -211,7 +243,7 @@ func deleteClusterCmd(providers []backend.Provider, clusterName, providerName st
 		}
 
 		if provider == nil {
-			return operationCompleteMsg{err: nil}
+			return operationCompleteMsg{operation: opDelete, err: nil}
 		}
 
 		err := provider.Delete(clusterName)
@@ -221,7 +253,7 @@ func deleteClusterCmd(providers []backend.Provider, clusterName, providerName st
 			"error":    err,
 		})
 
-		return operationCompleteMsg{err: err}
+		return operationCompleteMsg{operation: opDelete, err: err}
 	}
 }
 
@@ -237,7 +269,7 @@ func startClusterCmd(providers []backend.Provider, clusterName, providerName str
 		}
 
 		if provider == nil {
-			return operationCompleteMsg{err: nil}
+			return operationCompleteMsg{operation: opStart, err: nil}
 		}
 
 		err := provider.Start(clusterName)
@@ -247,7 +279,7 @@ func startClusterCmd(providers []backend.Provider, clusterName, providerName str
 			"error":    err,
 		})
 
-		return operationCompleteMsg{err: err}
+		return operationCompleteMsg{operation: opStart, err: err}
 	}
 }
 
@@ -263,7 +295,7 @@ func stopClusterCmd(providers []backend.Provider, clusterName, providerName stri
 		}
 
 		if provider == nil {
-			return operationCompleteMsg{err: nil}
+			return operationCompleteMsg{operation: opStop, err: nil}
 		}
 
 		err := provider.Stop(clusterName)
@@ -273,7 +305,7 @@ func stopClusterCmd(providers []backend.Provider, clusterName, providerName stri
 			"error":    err,
 		})
 
-		return operationCompleteMsg{err: err}
+		return operationCompleteMsg{operation: opStop, err: err}
 	}
 }
 
@@ -289,7 +321,7 @@ func createClusterCmd(providers []backend.Provider, providerName, name string, w
 		}
 
 		if provider == nil {
-			return operationCompleteMsg{err: nil}
+			return operationCompleteMsg{operation: opCreate, err: nil}
 		}
 
 		err := provider.Create(name, backend.CreateOptions{Workers: workers})
@@ -300,7 +332,7 @@ func createClusterCmd(providers []backend.Provider, providerName, name string, w
 			"error":    err,
 		})
 
-		return operationCompleteMsg{err: err}
+		return operationCompleteMsg{operation: opCreate, err: err}
 	}
 }
 

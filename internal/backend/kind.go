@@ -68,8 +68,14 @@ func (p *KindProvider) Create(name string, opts CreateOptions) error {
 	// kind doesn't have a simple worker flag, would need config file
 	// ignoring worker count for now as per plan (CLI form only)
 
-	_, err := Exec("kind", args...)
+	output, err := Exec("kind", args...)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to create kind cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to create kind cluster: %w", err)
 	}
 	return nil
@@ -77,8 +83,14 @@ func (p *KindProvider) Create(name string, opts CreateOptions) error {
 
 // Delete deletes a kind cluster
 func (p *KindProvider) Delete(name string) error {
-	_, err := Exec("kind", "delete", "cluster", "--name", name)
+	output, err := Exec("kind", "delete", "cluster", "--name", name)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to delete kind cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to delete kind cluster: %w", err)
 	}
 	return nil

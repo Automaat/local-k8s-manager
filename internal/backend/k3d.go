@@ -92,8 +92,15 @@ func (p *K3dProvider) Create(name string, opts CreateOptions) error {
 		args = append(args, "--agents", strconv.Itoa(opts.Workers))
 	}
 
-	_, err := Exec("k3d", args...)
+	output, err := Exec("k3d", args...)
 	if err != nil {
+		if len(output) > 0 {
+			// Check for Docker errors first
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to create k3d cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to create k3d cluster: %w", err)
 	}
 	return nil
@@ -101,8 +108,14 @@ func (p *K3dProvider) Create(name string, opts CreateOptions) error {
 
 // Delete deletes a k3d cluster
 func (p *K3dProvider) Delete(name string) error {
-	_, err := Exec("k3d", "cluster", "delete", name)
+	output, err := Exec("k3d", "cluster", "delete", name)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to delete k3d cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to delete k3d cluster: %w", err)
 	}
 	return nil
@@ -110,8 +123,14 @@ func (p *K3dProvider) Delete(name string) error {
 
 // Start starts a k3d cluster
 func (p *K3dProvider) Start(name string) error {
-	_, err := Exec("k3d", "cluster", "start", name)
+	output, err := Exec("k3d", "cluster", "start", name)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to start k3d cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to start k3d cluster: %w", err)
 	}
 	return nil
@@ -119,8 +138,14 @@ func (p *K3dProvider) Start(name string) error {
 
 // Stop stops a k3d cluster
 func (p *K3dProvider) Stop(name string) error {
-	_, err := Exec("k3d", "cluster", "stop", name)
+	output, err := Exec("k3d", "cluster", "stop", name)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to stop k3d cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to stop k3d cluster: %w", err)
 	}
 	return nil
