@@ -100,8 +100,14 @@ func (p *MinikubeProvider) Create(name string, opts CreateOptions) error {
 		args = append(args, "--nodes", fmt.Sprintf("%d", opts.Workers+1))
 	}
 
-	_, err := Exec("minikube", args...)
+	output, err := Exec("minikube", args...)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to create minikube cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to create minikube cluster: %w", err)
 	}
 	return nil
@@ -109,8 +115,14 @@ func (p *MinikubeProvider) Create(name string, opts CreateOptions) error {
 
 // Delete deletes a minikube cluster
 func (p *MinikubeProvider) Delete(name string) error {
-	_, err := Exec("minikube", "delete", "-p", name)
+	output, err := Exec("minikube", "delete", "-p", name)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to delete minikube cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to delete minikube cluster: %w", err)
 	}
 	return nil
@@ -118,8 +130,14 @@ func (p *MinikubeProvider) Delete(name string) error {
 
 // Start starts a minikube cluster
 func (p *MinikubeProvider) Start(name string) error {
-	_, err := Exec("minikube", "start", "-p", name)
+	output, err := Exec("minikube", "start", "-p", name)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to start minikube cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to start minikube cluster: %w", err)
 	}
 	return nil
@@ -127,8 +145,14 @@ func (p *MinikubeProvider) Start(name string) error {
 
 // Stop stops a minikube cluster
 func (p *MinikubeProvider) Stop(name string) error {
-	_, err := Exec("minikube", "stop", "-p", name)
+	output, err := Exec("minikube", "stop", "-p", name)
 	if err != nil {
+		if len(output) > 0 {
+			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
+				return fmt.Errorf("%s", dockerErr)
+			}
+			return fmt.Errorf("failed to stop minikube cluster: %s", string(output))
+		}
 		return fmt.Errorf("failed to stop minikube cluster: %w", err)
 	}
 	return nil

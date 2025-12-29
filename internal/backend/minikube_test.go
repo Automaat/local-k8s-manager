@@ -158,6 +158,26 @@ var _ = Describe("MinikubeProvider", func() {
 			err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("should return Docker error when Docker daemon is not running", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("Cannot connect to the Docker daemon"), errors.New("exit status 1")
+			}
+
+			err := provider.Create("test", backend.CreateOptions{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
+		})
+
+		It("should return command output on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("profile already exists"), errors.New("exit status 1")
+			}
+
+			err := provider.Create("test", backend.CreateOptions{})
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("profile already exists"))
+		})
 	})
 
 	Describe("Delete", func() {
@@ -181,6 +201,26 @@ var _ = Describe("MinikubeProvider", func() {
 			err := provider.Delete("test")
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("should return Docker error when Docker daemon is not running", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("Docker daemon is not running"), errors.New("exit status 1")
+			}
+
+			err := provider.Delete("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
+		})
+
+		It("should return command output on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("profile not found"), errors.New("exit status 1")
+			}
+
+			err := provider.Delete("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("profile not found"))
+		})
 	})
 
 	Describe("Start", func() {
@@ -201,6 +241,26 @@ var _ = Describe("MinikubeProvider", func() {
 			err := provider.Start("test")
 			Expect(err).To(HaveOccurred())
 		})
+
+		It("should return Docker error when Docker daemon is not running", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("Is the docker daemon running?"), errors.New("exit status 1")
+			}
+
+			err := provider.Start("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
+		})
+
+		It("should return command output on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("cluster already running"), errors.New("exit status 1")
+			}
+
+			err := provider.Start("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cluster already running"))
+		})
 	})
 
 	Describe("Stop", func() {
@@ -220,6 +280,26 @@ var _ = Describe("MinikubeProvider", func() {
 
 			err := provider.Stop("test")
 			Expect(err).To(HaveOccurred())
+		})
+
+		It("should return Docker error when Docker daemon is not running", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("docker: not found"), errors.New("exit status 1")
+			}
+
+			err := provider.Stop("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
+		})
+
+		It("should return command output on failure", func() {
+			mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+				return []byte("cluster already stopped"), errors.New("exit status 1")
+			}
+
+			err := provider.Stop("test")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cluster already stopped"))
 		})
 	})
 })

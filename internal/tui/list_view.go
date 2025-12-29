@@ -45,7 +45,10 @@ func (m Model) renderListView() string {
 			tableContent.WriteString(msg)
 		}
 	} else {
-		tableContent.WriteString(m.renderClusterTable())
+		// Calculate available width for table inside the box
+		// Subtract baseStyle padding (4) + border (2) + box padding (4)
+		tableWidth := m.width - 10
+		tableContent.WriteString(m.renderClusterTable(tableWidth))
 		if m.loading {
 			tableContent.WriteString("\n\n")
 			msg := m.spinner.View() + " Refreshing..."
@@ -81,13 +84,35 @@ func (m Model) renderListView() string {
 }
 
 // renderClusterTable renders the cluster table
-func (m Model) renderClusterTable() string {
-	// Calculate column widths
-	providerWidth := 12
-	nameWidth := 20
-	statusWidth := 10
-	nodesWidth := 7
-	ageWidth := 10
+func (m Model) renderClusterTable(availableWidth int) string {
+	// Calculate column widths dynamically based on available width
+	// Minimum widths for each column
+	minProviderWidth := 12
+	minNameWidth := 15
+	minStatusWidth := 10
+	minNodesWidth := 7
+	minAgeWidth := 10
+
+	// Space between columns (4 spaces for 5 columns)
+	spacers := 4
+
+	// Calculate minimum required width
+	minTotalWidth := minProviderWidth + minNameWidth + minStatusWidth + minNodesWidth + minAgeWidth + spacers
+
+	// Use minimum widths if available width is too small
+	if availableWidth < minTotalWidth {
+		availableWidth = minTotalWidth
+	}
+
+	// Distribute extra space proportionally (favor name column)
+	extraWidth := availableWidth - minTotalWidth
+	nameExtraWidth := extraWidth // Give all extra width to name column
+
+	providerWidth := minProviderWidth
+	nameWidth := minNameWidth + nameExtraWidth
+	statusWidth := minStatusWidth
+	nodesWidth := minNodesWidth
+	ageWidth := minAgeWidth
 
 	// Header
 	header := []string{
@@ -99,7 +124,7 @@ func (m Model) renderClusterTable() string {
 	}
 
 	rows := []string{strings.Join(header, " ")}
-	rows = append(rows, strings.Repeat("─", providerWidth+nameWidth+statusWidth+nodesWidth+ageWidth+8))
+	rows = append(rows, strings.Repeat("─", providerWidth+nameWidth+statusWidth+nodesWidth+ageWidth+spacers))
 
 	// Rows
 	for i, cluster := range m.clusters {

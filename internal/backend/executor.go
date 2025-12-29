@@ -2,6 +2,7 @@ package backend
 
 import (
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/automaat/local-k8s-manager/internal/logger"
@@ -60,4 +61,20 @@ func IsCommandAvailable(name string) bool {
 // SetExecutor sets the global executor (for testing)
 func SetExecutor(e CommandExecutor) {
 	executor = e
+}
+
+// ParseDockerError checks if an error message indicates Docker is not running
+// and returns a user-friendly error message if so
+func ParseDockerError(output string) string {
+	lowerOutput := strings.ToLower(output)
+
+	// Check for common Docker daemon errors
+	if strings.Contains(lowerOutput, "cannot connect to the docker daemon") ||
+		strings.Contains(lowerOutput, "is the docker daemon running") ||
+		strings.Contains(lowerOutput, "docker: not found") ||
+		strings.Contains(lowerOutput, "docker daemon is not running") {
+		return "Docker is not running. Please start Docker and try again."
+	}
+
+	return ""
 }

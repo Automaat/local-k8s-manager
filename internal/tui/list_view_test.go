@@ -104,9 +104,12 @@ func TestRenderClusterTable(t *testing.T) {
 			{Name: "very-long-cluster-name-that-exceeds-width", Provider: "kind-provider-long", Status: models.StatusStopped, Nodes: 1, CreatedAt: time.Now()},
 		},
 		cursor: 0,
+		width:  80,
 	}
 
-	result := m.renderClusterTable()
+	// Available width for table (width - baseStyle padding - border - box padding)
+	tableWidth := m.width - 10
+	result := m.renderClusterTable(tableWidth)
 	if result == "" {
 		t.Error("expected non-empty table")
 	}

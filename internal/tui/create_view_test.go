@@ -36,8 +36,8 @@ func TestNewCreateFormModel(t *testing.T) {
 		t.Errorf("expected workers to be '1', got %s", form.workers)
 	}
 
-	if form.focusedField != providerField {
-		t.Errorf("expected focusedField to be providerField, got %v", form.focusedField)
+	if form.currentStep != stepProvider {
+		t.Errorf("expected currentStep to be stepProvider, got %v", form.currentStep)
 	}
 }
 
@@ -75,33 +75,144 @@ func TestRenderCreateViewWithoutForm(t *testing.T) {
 	}
 }
 
-func TestRenderFormField(t *testing.T) {
+func TestRenderCreateViewUnknownStep(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := Model{
+		createForm: &createFormModel{
+			providers:        providers,
+			selectedProvider: 0,
+			name:             "test",
+			workers:          "1",
+			currentStep:      createStep(999), // Invalid step
+		},
+		width: 80,
+	}
+
+	result := m.renderCreateView()
+
+	if result != "Unknown step" {
+		t.Errorf("expected 'Unknown step', got %s", result)
+	}
+}
+
+func TestRenderCreateViewAllSteps(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	tests := []struct {
+		name string
+		step createStep
+	}{
+		{"step provider", stepProvider},
+		{"step name", stepName},
+		{"step workers", stepWorkers},
+		{"step review", stepReview},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := Model{
+				createForm: &createFormModel{
+					providers:        providers,
+					selectedProvider: 0,
+					name:             "test",
+					workers:          "1",
+					currentStep:      tt.step,
+				},
+				width: 80,
+			}
+
+			result := m.renderCreateView()
+			if result == "" {
+				t.Error("expected non-empty result")
+			}
+		})
+	}
+}
+
+func TestRenderStepProvider(t *testing.T) {
 	providers := []backend.Provider{
 		backend.NewK3dProvider(),
 	}
 
 	m := Model{
 		createForm: newCreateFormModel(providers),
+		width:      80,
 	}
 
-	result := m.renderFormField("Test Label", providerField)
-	if result == "" {
-		t.Error("expected non-empty result")
-	}
-
-	// Test with different field
-	result = m.renderFormField("Other Label", nameField)
+	result := m.renderStepProvider()
 	if result == "" {
 		t.Error("expected non-empty result")
 	}
 }
 
-func TestRenderCreateHelp(t *testing.T) {
-	m := Model{}
+func TestRenderStepName(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
 
-	result := m.renderCreateHelp()
+	m := Model{
+		createForm: &createFormModel{
+			providers:        providers,
+			selectedProvider: 0,
+			name:             "",
+			workers:          "1",
+			currentStep:      stepName,
+		},
+		width: 80,
+	}
+
+	result := m.renderStepName()
 	if result == "" {
-		t.Error("expected non-empty help text")
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestRenderStepWorkers(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := Model{
+		createForm: &createFormModel{
+			providers:        providers,
+			selectedProvider: 0,
+			name:             "test",
+			workers:          "1",
+			currentStep:      stepWorkers,
+		},
+		width: 80,
+	}
+
+	result := m.renderStepWorkers()
+	if result == "" {
+		t.Error("expected non-empty result")
+	}
+}
+
+func TestRenderStepReview(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := Model{
+		createForm: &createFormModel{
+			providers:        providers,
+			selectedProvider: 0,
+			name:             "test",
+			workers:          "2",
+			currentStep:      stepReview,
+		},
+		width: 80,
+	}
+
+	result := m.renderStepReview()
+	if result == "" {
+		t.Error("expected non-empty result")
 	}
 }
 
@@ -120,42 +231,31 @@ func TestHandleCreateViewKeys(t *testing.T) {
 		validateForm func(*testing.T, *createFormModel)
 	}{
 		{
-			name:         "esc key returns to list view",
+			name:         "esc key on step 1 returns to list view",
 			key:          "esc",
 			initialForm:  newCreateFormModel(providers),
 			expectedView: listView,
 			checkFormNil: true,
 		},
 		{
-			name:         "tab key cycles to next field",
-			key:          "tab",
-			initialForm:  newCreateFormModel(providers),
-			expectedView: createView,
-			validateForm: func(t *testing.T, form *createFormModel) {
-				if form.focusedField != nameField {
-					t.Errorf("expected nameField, got %v", form.focusedField)
-				}
-			},
-		},
-		{
-			name: "shift+tab key cycles to previous field",
-			key:  "shift+tab",
+			name: "esc key on step 2 goes back to step 1",
+			key:  "esc",
 			initialForm: &createFormModel{
 				providers:        providers,
 				selectedProvider: 0,
 				name:             "",
 				workers:          "1",
-				focusedField:     nameField,
+				currentStep:      stepName,
 			},
 			expectedView: createView,
 			validateForm: func(t *testing.T, form *createFormModel) {
-				if form.focusedField != providerField {
-					t.Errorf("expected providerField, got %v", form.focusedField)
+				if form.currentStep != stepProvider {
+					t.Errorf("expected stepProvider, got %v", form.currentStep)
 				}
 			},
 		},
 		{
-			name:         "down key selects next provider",
+			name:         "down key selects next provider on step 1",
 			key:          "down",
 			initialForm:  newCreateFormModel(providers),
 			expectedView: createView,
@@ -166,14 +266,14 @@ func TestHandleCreateViewKeys(t *testing.T) {
 			},
 		},
 		{
-			name: "up key selects previous provider",
+			name: "up key selects previous provider on step 1",
 			key:  "up",
 			initialForm: &createFormModel{
 				providers:        providers,
 				selectedProvider: 1,
 				name:             "",
 				workers:          "1",
-				focusedField:     providerField,
+				currentStep:      stepProvider,
 			},
 			expectedView: createView,
 			validateForm: func(t *testing.T, form *createFormModel) {
@@ -190,7 +290,7 @@ func TestHandleCreateViewKeys(t *testing.T) {
 				selectedProvider: 0,
 				name:             "test",
 				workers:          "1",
-				focusedField:     nameField,
+				currentStep:      stepName,
 			},
 			expectedView: createView,
 			validateForm: func(t *testing.T, form *createFormModel) {
@@ -205,9 +305,9 @@ func TestHandleCreateViewKeys(t *testing.T) {
 			initialForm: &createFormModel{
 				providers:        providers,
 				selectedProvider: 0,
-				name:             "",
+				name:             "test",
 				workers:          "10",
-				focusedField:     workersField,
+				currentStep:      stepWorkers,
 			},
 			expectedView: createView,
 			validateForm: func(t *testing.T, form *createFormModel) {
@@ -255,7 +355,7 @@ func TestHandleCreateViewKeysTextInput(t *testing.T) {
 		backend.NewK3dProvider(),
 	}
 
-	// Test name field text input
+	// Test name field text input on step 2
 	m := Model{
 		providers: providers,
 		createForm: &createFormModel{
@@ -263,7 +363,7 @@ func TestHandleCreateViewKeysTextInput(t *testing.T) {
 			selectedProvider: 0,
 			name:             "",
 			workers:          "1",
-			focusedField:     nameField,
+			currentStep:      stepName,
 		},
 		view: createView,
 	}
@@ -277,8 +377,8 @@ func TestHandleCreateViewKeysTextInput(t *testing.T) {
 		t.Errorf("expected name 'a', got %s", m.createForm.name)
 	}
 
-	// Test workers field numeric input
-	m.createForm.focusedField = workersField
+	// Test workers field numeric input on step 3
+	m.createForm.currentStep = stepWorkers
 	m.createForm.workers = ""
 
 	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'5'}}
@@ -299,40 +399,66 @@ func TestHandleCreateViewKeysTextInput(t *testing.T) {
 	}
 }
 
-func TestHandleCreateViewKeysEnterValidation(t *testing.T) {
+func TestHandleEnterKeyStepNavigation(t *testing.T) {
 	providers := []backend.Provider{
 		backend.NewK3dProvider(),
 	}
 
 	tests := []struct {
-		name        string
-		clusterName string
-		workers     string
-		expectError bool
+		name         string
+		currentStep  createStep
+		clusterName  string
+		workers      string
+		expectedStep createStep
+		expectError  bool
+		expectSubmit bool
 	}{
 		{
-			name:        "valid cluster",
-			clusterName: "test-cluster",
-			workers:     "2",
-			expectError: false,
+			name:         "step 1 to step 2",
+			currentStep:  stepProvider,
+			clusterName:  "",
+			workers:      "1",
+			expectedStep: stepName,
+			expectError:  false,
 		},
 		{
-			name:        "empty name",
-			clusterName: "",
-			workers:     "1",
-			expectError: true,
+			name:         "step 2 to step 3 with valid name",
+			currentStep:  stepName,
+			clusterName:  "test-cluster",
+			workers:      "1",
+			expectedStep: stepWorkers,
+			expectError:  false,
 		},
 		{
-			name:        "invalid workers",
-			clusterName: "test",
-			workers:     "abc",
-			expectError: true,
+			name:         "step 2 stays on error with empty name",
+			currentStep:  stepName,
+			clusterName:  "",
+			workers:      "1",
+			expectedStep: stepName,
+			expectError:  true,
 		},
 		{
-			name:        "negative workers",
-			clusterName: "test",
-			workers:     "-1",
-			expectError: true,
+			name:         "step 3 to step 4 with valid workers",
+			currentStep:  stepWorkers,
+			clusterName:  "test",
+			workers:      "2",
+			expectedStep: stepReview,
+			expectError:  false,
+		},
+		{
+			name:         "step 3 stays on error with invalid workers",
+			currentStep:  stepWorkers,
+			clusterName:  "test",
+			workers:      "abc",
+			expectedStep: stepWorkers,
+			expectError:  true,
+		},
+		{
+			name:         "step 4 submits form",
+			currentStep:  stepReview,
+			clusterName:  "test",
+			workers:      "2",
+			expectSubmit: true,
 		},
 	}
 
@@ -345,7 +471,7 @@ func TestHandleCreateViewKeysEnterValidation(t *testing.T) {
 					selectedProvider: 0,
 					name:             tt.clusterName,
 					workers:          tt.workers,
-					focusedField:     providerField,
+					currentStep:      tt.currentStep,
 				},
 				view: createView,
 			}
@@ -357,18 +483,33 @@ func TestHandleCreateViewKeysEnterValidation(t *testing.T) {
 				if m.err == nil {
 					t.Error("expected error, got nil")
 				}
-				if m.view != createView {
-					t.Errorf("expected to stay in createView on error, got %v", m.view)
+				if m.createForm == nil {
+					t.Fatal("expected form to still exist on error")
+				}
+				if m.createForm.currentStep != tt.expectedStep {
+					t.Errorf("expected to stay on step %v, got %v", tt.expectedStep, m.createForm.currentStep)
+				}
+			} else if tt.expectSubmit {
+				// After pressing enter on step 4, we stay in create view and set loading
+				// Form is not cleared until operationCompleteMsg is received
+				if m.err != nil {
+					t.Errorf("expected no error when starting submit, got %v", m.err)
+				}
+				if !m.loading {
+					t.Error("expected loading to be true when submitting")
+				}
+				if m.createForm == nil {
+					t.Error("expected form to still exist while operation is in progress")
 				}
 			} else {
 				if m.err != nil {
 					t.Errorf("expected no error, got %v", m.err)
 				}
-				if m.view != listView {
-					t.Errorf("expected to switch to listView, got %v", m.view)
+				if m.createForm == nil {
+					t.Fatal("expected form to still exist")
 				}
-				if m.createForm != nil {
-					t.Error("expected form to be nil after successful submit")
+				if m.createForm.currentStep != tt.expectedStep {
+					t.Errorf("expected step %v, got %v", tt.expectedStep, m.createForm.currentStep)
 				}
 			}
 		})

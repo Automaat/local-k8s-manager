@@ -51,4 +51,47 @@ var _ = Describe("Executor", func() {
 			Expect(result).To(BeTrue())
 		})
 	})
+
+	Describe("ParseDockerError", func() {
+		It("should detect 'cannot connect to the docker daemon' error", func() {
+			output := "Error: Cannot connect to the Docker daemon at unix:///var/run/docker.sock"
+			result := backend.ParseDockerError(output)
+			Expect(result).To(Equal("Docker is not running. Please start Docker and try again."))
+		})
+
+		It("should detect 'is the docker daemon running' error", func() {
+			output := "Is the docker daemon running?"
+			result := backend.ParseDockerError(output)
+			Expect(result).To(Equal("Docker is not running. Please start Docker and try again."))
+		})
+
+		It("should detect 'docker: not found' error", func() {
+			output := "docker: not found"
+			result := backend.ParseDockerError(output)
+			Expect(result).To(Equal("Docker is not running. Please start Docker and try again."))
+		})
+
+		It("should detect 'docker daemon is not running' error", func() {
+			output := "The Docker daemon is not running"
+			result := backend.ParseDockerError(output)
+			Expect(result).To(Equal("Docker is not running. Please start Docker and try again."))
+		})
+
+		It("should be case-insensitive", func() {
+			output := "CANNOT CONNECT TO THE DOCKER DAEMON"
+			result := backend.ParseDockerError(output)
+			Expect(result).To(Equal("Docker is not running. Please start Docker and try again."))
+		})
+
+		It("should return empty string for non-Docker errors", func() {
+			output := "some other error message"
+			result := backend.ParseDockerError(output)
+			Expect(result).To(BeEmpty())
+		})
+
+		It("should return empty string for empty input", func() {
+			result := backend.ParseDockerError("")
+			Expect(result).To(BeEmpty())
+		})
+	})
 })
