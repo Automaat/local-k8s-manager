@@ -28,6 +28,8 @@ type createFormModel struct {
 	name             string
 	workers          string
 	currentStep      createStep
+	nameModified     bool
+	workersModified  bool
 }
 
 // newCreateFormModel creates a new create form model
@@ -231,6 +233,13 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.createForm = nil
 			m.err = nil
 		} else {
+			// Reset modification flags for current step before going back
+			switch form.currentStep {
+			case stepName:
+				form.nameModified = false
+			case stepWorkers:
+				form.workersModified = false
+			}
 			// Go back to previous step
 			form.currentStep--
 			m.err = nil
@@ -264,9 +273,19 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Handle text input
 		if len(msg.String()) == 1 {
 			if form.currentStep == stepName {
-				form.name += msg.String()
+				if !form.nameModified {
+					form.name = msg.String()
+					form.nameModified = true
+				} else {
+					form.name += msg.String()
+				}
 			} else if form.currentStep == stepWorkers && msg.String() >= "0" && msg.String() <= "9" {
-				form.workers += msg.String()
+				if !form.workersModified {
+					form.workers = msg.String()
+					form.workersModified = true
+				} else {
+					form.workers += msg.String()
+				}
 			}
 		}
 	}
