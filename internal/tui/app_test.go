@@ -594,8 +594,8 @@ func TestOperationCompleteMsgCreate(t *testing.T) {
 		t.Error("expected no error")
 	}
 
-	if cmd != nil {
-		t.Error("expected no command for create operation")
+	if cmd == nil {
+		t.Error("expected auto-close command for successful create operation")
 	}
 }
 
@@ -625,6 +625,99 @@ func TestOperationCompleteMsgCreateWithError(t *testing.T) {
 
 	if m.err == nil {
 		t.Error("expected error to be set")
+	}
+}
+
+func TestAutoCloseLogsMsgInCreateView(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+		logs:        "test logs",
+	}
+
+	msg := autoCloseLogsMsg{}
+	newModel, cmd := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.view != listView {
+		t.Error("expected view to be listView")
+	}
+
+	if m.createForm != nil {
+		t.Error("expected createForm to be nil")
+	}
+
+	if m.err != nil {
+		t.Error("expected err to be nil")
+	}
+
+	if cmd == nil {
+		t.Error("expected loadClustersCmd")
+	}
+}
+
+func TestAutoCloseLogsMsgInHelpView(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = helpView
+	m.previousView = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+		logs:        "test logs",
+	}
+
+	msg := autoCloseLogsMsg{}
+	newModel, cmd := m.Update(msg)
+	m = newModel.(Model)
+
+	// Should not change view when in help view
+	if m.view != helpView {
+		t.Error("expected view to remain helpView")
+	}
+
+	if m.createForm == nil {
+		t.Error("expected createForm to remain set")
+	}
+
+	if cmd != nil {
+		t.Error("expected no command when not in createView")
+	}
+}
+
+func TestAutoCloseLogsMsgNotOnLogsStep(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepReview,
+	}
+
+	msg := autoCloseLogsMsg{}
+	newModel, cmd := m.Update(msg)
+	m = newModel.(Model)
+
+	// Should not change view when not on logs step
+	if m.view != createView {
+		t.Error("expected view to remain createView")
+	}
+
+	if m.createForm == nil {
+		t.Error("expected createForm to remain set")
+	}
+
+	if cmd != nil {
+		t.Error("expected no command when not on stepLogs")
 	}
 }
 

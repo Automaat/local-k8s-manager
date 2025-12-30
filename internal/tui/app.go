@@ -154,7 +154,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case autoCloseLogsMsg:
 		// Close logs and return to list view
-		if m.createForm != nil && m.createForm.currentStep == stepLogs {
+		if m.view == createView && m.createForm != nil && m.createForm.currentStep == stepLogs {
 			m.view = listView
 			m.createForm = nil
 			m.err = nil
