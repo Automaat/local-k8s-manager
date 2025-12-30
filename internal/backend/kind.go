@@ -64,23 +64,34 @@ func (p *KindProvider) List() ([]models.Cluster, error) {
 }
 
 // Create creates a new kind cluster
-func (p *KindProvider) Create(name string, opts CreateOptions) error {
+func (p *KindProvider) Create(name string, opts CreateOptions, outputChan ...chan<- string) (string, error) {
 	args := []string{"create", "cluster", "--name", name}
 
 	// kind doesn't have a simple worker flag, would need config file
 	// ignoring worker count for now as per plan (CLI form only)
 
-	output, err := Exec("kind", args...)
-	if err != nil {
-		if len(output) > 0 {
-			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
-				return fmt.Errorf("%s", dockerErr)
-			}
-			return fmt.Errorf("failed to create kind cluster: %s", string(output))
-		}
-		return fmt.Errorf("failed to create kind cluster: %w", err)
+	var output []byte
+	var outputStr string
+	var err error
+
+	// Use streaming if channel provided
+	if len(outputChan) > 0 && outputChan[0] != nil {
+		outputStr, err = ExecStreaming("kind", args, outputChan[0])
+	} else {
+		output, err = Exec("kind", args...)
+		outputStr = string(output)
 	}
-	return nil
+
+	if err != nil {
+		if len(outputStr) > 0 {
+			if dockerErr := ParseDockerError(outputStr); dockerErr != "" {
+				return outputStr, fmt.Errorf("%s", dockerErr)
+			}
+			return outputStr, fmt.Errorf("failed to create kind cluster: %s", outputStr)
+		}
+		return outputStr, fmt.Errorf("failed to create kind cluster: %w", err)
+	}
+	return outputStr, nil
 }
 
 // Delete deletes a kind cluster

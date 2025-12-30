@@ -644,3 +644,197 @@ func TestFirstKeypressReplacesDefault(t *testing.T) {
 		}
 	})
 }
+
+func TestRenderStepLogs(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	t.Run("renders waiting message when logs are empty", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:    providers,
+				currentStep:  stepLogs,
+				logs:         "",
+				scrollOffset: 0,
+			},
+			view:   createView,
+			width:  100,
+			height: 50,
+		}
+
+		result := m.renderStepLogs()
+		if result == "" {
+			t.Error("expected non-empty result")
+		}
+	})
+
+	t.Run("renders logs content", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:    providers,
+				currentStep:  stepLogs,
+				logs:         "log line 1\nlog line 2\nlog line 3",
+				scrollOffset: 0,
+			},
+			view:   createView,
+			width:  100,
+			height: 50,
+		}
+
+		result := m.renderStepLogs()
+		if result == "" {
+			t.Error("expected non-empty result")
+		}
+	})
+
+	t.Run("handles small window height", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:    providers,
+				currentStep:  stepLogs,
+				logs:         "log line 1",
+				scrollOffset: 0,
+			},
+			view:   createView,
+			width:  100,
+			height: 10,
+		}
+
+		result := m.renderStepLogs()
+		if result == "" {
+			t.Error("expected non-empty result")
+		}
+	})
+
+	t.Run("shows error when creation failed", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:    providers,
+				currentStep:  stepLogs,
+				logs:         "some logs",
+				scrollOffset: 0,
+			},
+			view:   createView,
+			width:  100,
+			height: 50,
+			err:    &testError{msg: "creation failed"},
+		}
+
+		result := m.renderStepLogs()
+		if result == "" {
+			t.Error("expected non-empty result")
+		}
+	})
+}
+
+func TestHandleLogsStepKeys(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	t.Run("up/k scrolls up", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:    providers,
+				currentStep:  stepLogs,
+				logs:         "line1\nline2\nline3\nline4\nline5",
+				scrollOffset: 3,
+			},
+			view: createView,
+		}
+
+		newModel, _ := m.handleCreateViewKeys(keyMsg("up"))
+		m = newModel.(Model)
+
+		if m.createForm.scrollOffset != 2 {
+			t.Errorf("expected scrollOffset 2, got %d", m.createForm.scrollOffset)
+		}
+
+		newModel, _ = m.handleCreateViewKeys(keyMsg("k"))
+		m = newModel.(Model)
+
+		if m.createForm.scrollOffset != 1 {
+			t.Errorf("expected scrollOffset 1, got %d", m.createForm.scrollOffset)
+		}
+	})
+
+	t.Run("down/j scrolls down", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:    providers,
+				currentStep:  stepLogs,
+				logs:         "line1\nline2\nline3\nline4\nline5",
+				scrollOffset: 0,
+			},
+			view: createView,
+		}
+
+		newModel, _ := m.handleCreateViewKeys(keyMsg("down"))
+		m = newModel.(Model)
+
+		if m.createForm.scrollOffset != 1 {
+			t.Errorf("expected scrollOffset 1, got %d", m.createForm.scrollOffset)
+		}
+
+		newModel, _ = m.handleCreateViewKeys(keyMsg("j"))
+		m = newModel.(Model)
+
+		if m.createForm.scrollOffset != 2 {
+			t.Errorf("expected scrollOffset 2, got %d", m.createForm.scrollOffset)
+		}
+	})
+
+	t.Run("esc returns to list view", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:   providers,
+				currentStep: stepLogs,
+				logs:        "some logs",
+			},
+			view: createView,
+		}
+
+		newModel, _ := m.handleCreateViewKeys(keyMsg("esc"))
+		m = newModel.(Model)
+
+		if m.view != listView {
+			t.Errorf("expected listView, got %v", m.view)
+		}
+		if m.createForm != nil {
+			t.Error("expected createForm to be nil")
+		}
+	})
+
+	t.Run("enter returns to list and refreshes", func(t *testing.T) {
+		m := Model{
+			providers: providers,
+			createForm: &createFormModel{
+				providers:   providers,
+				currentStep: stepLogs,
+				logs:        "some logs",
+			},
+			view: createView,
+		}
+
+		newModel, cmd := m.handleEnterKey()
+		m = newModel.(Model)
+
+		if m.view != listView {
+			t.Errorf("expected listView, got %v", m.view)
+		}
+		if m.createForm != nil {
+			t.Error("expected createForm to be nil")
+		}
+		if cmd == nil {
+			t.Error("expected command to refresh clusters")
+		}
+	})
+}

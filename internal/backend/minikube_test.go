@@ -132,8 +132,9 @@ var _ = Describe("MinikubeProvider", func() {
 				return []byte("success"), nil
 			}
 
-			err := provider.Create("test-cluster", backend.CreateOptions{Workers: 0})
+			output, err := provider.Create("test-cluster", backend.CreateOptions{Workers: 0})
 			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(Equal("success"))
 			Expect(capturedArgs).To(ContainElements("start", "--profile", "test-cluster"))
 			Expect(capturedArgs).NotTo(ContainElement("--nodes"))
 		})
@@ -145,8 +146,9 @@ var _ = Describe("MinikubeProvider", func() {
 				return []byte("success"), nil
 			}
 
-			err := provider.Create("test-cluster", backend.CreateOptions{Workers: 2})
+			output, err := provider.Create("test-cluster", backend.CreateOptions{Workers: 2})
 			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(Equal("success"))
 			Expect(capturedArgs).To(ContainElements("--nodes", "3")) // 2 workers + 1 control plane
 		})
 
@@ -155,8 +157,9 @@ var _ = Describe("MinikubeProvider", func() {
 				return nil, errors.New("failed")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal(""))
 		})
 
 		It("should return Docker error when Docker daemon is not running", func() {
@@ -164,8 +167,9 @@ var _ = Describe("MinikubeProvider", func() {
 				return []byte("Cannot connect to the Docker daemon"), errors.New("exit status 1")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal("Cannot connect to the Docker daemon"))
 			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
 		})
 
@@ -174,8 +178,9 @@ var _ = Describe("MinikubeProvider", func() {
 				return []byte("profile already exists"), errors.New("exit status 1")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal("profile already exists"))
 			Expect(err.Error()).To(ContainSubstring("profile already exists"))
 		})
 	})

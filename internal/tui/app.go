@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -63,6 +64,12 @@ type tickMsg time.Time
 type operationCompleteMsg struct {
 	operation operationType
 	err       error
+	output    string
+}
+
+type logLineMsg struct {
+	line       string
+	outputChan <-chan string
 }
 
 // NewModel creates a new TUI model
@@ -127,26 +134,60 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Handle create operation specially
 		if msg.operation == opCreate {
-			if msg.err != nil {
-				// Creation failed - stay in create view and show error
-				m.view = createView
-				if m.createForm != nil {
-					m.createForm.currentStep = stepReview
-				}
-				m.err = msg.err
-				return m, nil
-			} else {
-				// Creation succeeded - switch to list view and clear form
-				m.view = listView
-				m.createForm = nil
-				m.err = nil
-			}
+			// We're already on logs screen showing streamed output
+			// Just stop loading indicator and set error if any
+			m.err = msg.err
+			return m, nil
 		} else {
 			// For other operations, just set error
 			m.err = msg.err
 		}
 
 		return m, loadClustersCmd(m.providers)
+
+	case logLineMsg:
+		// Append log line to the current form logs
+		if m.createForm != nil && m.createForm.currentStep == stepLogs {
+			// Check if we're at the bottom before adding new line
+			logLines := strings.Split(m.createForm.logs, "\n")
+			oldLineCount := len(logLines)
+
+			// Calculate if user was at bottom (within 2 lines)
+			boxHeight := 20
+			if m.height-10 < boxHeight {
+				boxHeight = m.height - 10
+				if boxHeight < 5 {
+					boxHeight = 5
+				}
+			}
+			visibleLines := boxHeight - 2
+			if visibleLines < 1 {
+				visibleLines = 1
+			}
+			maxOffset := oldLineCount - visibleLines
+			if maxOffset < 0 {
+				maxOffset = 0
+			}
+			wasAtBottom := (m.createForm.scrollOffset >= maxOffset-2)
+
+			// Add new line
+			if m.createForm.logs != "" {
+				m.createForm.logs += "\n"
+			}
+			m.createForm.logs += msg.line
+
+			// Auto-scroll to bottom if user was already at/near bottom
+			if wasAtBottom {
+				newLogLines := strings.Split(m.createForm.logs, "\n")
+				newMaxOffset := len(newLogLines) - visibleLines
+				if newMaxOffset < 0 {
+					newMaxOffset = 0
+				}
+				m.createForm.scrollOffset = newMaxOffset
+			}
+		}
+		// Continue waiting for more log lines
+		return m, waitForLogLine(msg.outputChan)
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -309,30 +350,55 @@ func stopClusterCmd(providers []backend.Provider, clusterName, providerName stri
 	}
 }
 
-// createClusterCmd creates a new cluster
-func createClusterCmd(providers []backend.Provider, providerName, name string, workers int) tea.Cmd {
-	return func() tea.Msg {
-		var provider backend.Provider
-		for _, p := range providers {
-			if p.Name() == providerName {
-				provider = p
-				break
+// createClusterStreamingCmd creates a cluster and streams output via messages
+func createClusterStreamingCmd(providers []backend.Provider, providerName, name string, workers int) tea.Cmd {
+	// Create output channel for streaming
+	outputChan := make(chan string, 100)
+
+	// Return batch of commands: one to read from channel, one to execute
+	return tea.Batch(
+		// Command to wait for log lines
+		waitForLogLine(outputChan),
+		// Command to execute cluster creation
+		func() tea.Msg {
+			var provider backend.Provider
+			for _, p := range providers {
+				if p.Name() == providerName {
+					provider = p
+					break
+				}
 			}
+
+			if provider == nil {
+				close(outputChan)
+				return operationCompleteMsg{operation: opCreate, err: nil, output: ""}
+			}
+
+			// Execute with streaming
+			output, err := provider.Create(name, backend.CreateOptions{Workers: workers}, outputChan)
+			close(outputChan)
+
+			logger.Log("cluster.create", map[string]interface{}{
+				"provider": providerName,
+				"name":     name,
+				"workers":  workers,
+				"error":    err,
+			})
+
+			return operationCompleteMsg{operation: opCreate, err: err, output: output}
+		},
+	)
+}
+
+// waitForLogLine waits for a log line from the channel and returns it as a message
+func waitForLogLine(outputChan <-chan string) tea.Cmd {
+	return func() tea.Msg {
+		line, ok := <-outputChan
+		if !ok {
+			// Channel closed, no more lines
+			return nil
 		}
-
-		if provider == nil {
-			return operationCompleteMsg{operation: opCreate, err: nil}
-		}
-
-		err := provider.Create(name, backend.CreateOptions{Workers: workers})
-		logger.Log("cluster.create", map[string]interface{}{
-			"provider": providerName,
-			"name":     name,
-			"workers":  workers,
-			"error":    err,
-		})
-
-		return operationCompleteMsg{operation: opCreate, err: err}
+		return logLineMsg{line: line, outputChan: outputChan}
 	}
 }
 

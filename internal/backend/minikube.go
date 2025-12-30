@@ -92,7 +92,7 @@ func parseMinikubeStatus(status string) models.Status {
 }
 
 // Create creates a new minikube cluster
-func (p *MinikubeProvider) Create(name string, opts CreateOptions) error {
+func (p *MinikubeProvider) Create(name string, opts CreateOptions, outputChan ...chan<- string) (string, error) {
 	args := []string{"start", "--profile", name}
 	if opts.Workers > 0 {
 		// minikube uses --nodes for total node count (control-plane + workers)
@@ -100,17 +100,28 @@ func (p *MinikubeProvider) Create(name string, opts CreateOptions) error {
 		args = append(args, "--nodes", fmt.Sprintf("%d", opts.Workers+1))
 	}
 
-	output, err := Exec("minikube", args...)
-	if err != nil {
-		if len(output) > 0 {
-			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
-				return fmt.Errorf("%s", dockerErr)
-			}
-			return fmt.Errorf("failed to create minikube cluster: %s", string(output))
-		}
-		return fmt.Errorf("failed to create minikube cluster: %w", err)
+	var output []byte
+	var outputStr string
+	var err error
+
+	// Use streaming if channel provided
+	if len(outputChan) > 0 && outputChan[0] != nil {
+		outputStr, err = ExecStreaming("minikube", args, outputChan[0])
+	} else {
+		output, err = Exec("minikube", args...)
+		outputStr = string(output)
 	}
-	return nil
+
+	if err != nil {
+		if len(outputStr) > 0 {
+			if dockerErr := ParseDockerError(outputStr); dockerErr != "" {
+				return outputStr, fmt.Errorf("%s", dockerErr)
+			}
+			return outputStr, fmt.Errorf("failed to create minikube cluster: %s", outputStr)
+		}
+		return outputStr, fmt.Errorf("failed to create minikube cluster: %w", err)
+	}
+	return outputStr, nil
 }
 
 // Delete deletes a minikube cluster

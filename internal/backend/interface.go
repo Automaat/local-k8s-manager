@@ -14,7 +14,9 @@ type Provider interface {
 	List() ([]models.Cluster, error)
 
 	// Create creates a new cluster with the given name and options
-	Create(name string, opts CreateOptions) error
+	// Returns the command output and any error
+	// If outputChan is provided, output will be streamed line-by-line
+	Create(name string, opts CreateOptions, outputChan ...chan<- string) (string, error)
 
 	// Delete removes a cluster
 	Delete(name string) error

@@ -19,6 +19,7 @@ const (
 	stepName
 	stepWorkers
 	stepReview
+	stepLogs
 )
 
 // createFormModel holds the state of the create cluster form
@@ -30,6 +31,8 @@ type createFormModel struct {
 	currentStep      createStep
 	nameModified     bool
 	workersModified  bool
+	logs             string
+	scrollOffset     int // Line offset for scrolling logs
 }
 
 // newCreateFormModel creates a new create form model
@@ -58,6 +61,8 @@ func (m Model) renderCreateView() string {
 		return m.renderStepWorkers()
 	case stepReview:
 		return m.renderStepReview()
+	case stepLogs:
+		return m.renderStepLogs()
 	default:
 		return "Unknown step"
 	}
@@ -212,6 +217,87 @@ func (m Model) renderStepReview() string {
 	return baseStyle.Render(b.String())
 }
 
+// renderStepLogs renders step 5: creation logs
+func (m Model) renderStepLogs() string {
+	var b strings.Builder
+	form := m.createForm
+
+	// Title
+	title := titleStyle.Render("Cluster Creation Logs")
+	b.WriteString(title)
+	b.WriteString("\n\n")
+
+	// Fixed box height
+	boxHeight := 20
+	if m.height-10 < boxHeight {
+		boxHeight = m.height - 10
+		if boxHeight < 5 {
+			boxHeight = 5
+		}
+	}
+
+	// Calculate content width
+	contentWidth := m.width - 6
+
+	// Show lines based on scroll offset
+	var visibleLogs string
+	if form.logs == "" {
+		visibleLogs = "Waiting for output..."
+	} else {
+		logLines := strings.Split(form.logs, "\n")
+		// Account for padding inside box (2 lines)
+		visibleLines := boxHeight - 2
+		if visibleLines < 1 {
+			visibleLines = 1
+		}
+
+		// Use scroll offset, clamped to valid range
+		startLine := form.scrollOffset
+		if startLine < 0 {
+			startLine = 0
+		}
+		maxOffset := len(logLines) - visibleLines
+		if maxOffset < 0 {
+			maxOffset = 0
+		}
+		if startLine > maxOffset {
+			startLine = maxOffset
+		}
+
+		endLine := startLine + visibleLines
+		if endLine > len(logLines) {
+			endLine = len(logLines)
+		}
+		visibleLogs = strings.Join(logLines[startLine:endLine], "\n")
+	}
+
+	// Wrap logs in bordered box with fixed height
+	logBox := listBoxStyle.
+		Width(contentWidth).
+		Height(boxHeight).
+		Inline(false).
+		Render(visibleLogs)
+
+	b.WriteString(logBox)
+	b.WriteString("\n")
+
+	// Error message if creation failed
+	if m.err != nil {
+		b.WriteString(renderError(m.err, m.width))
+		b.WriteString("\n")
+	}
+
+	// Help
+	helpText := "↑/↓ j/k: scroll • Enter: continue • Esc: back to list"
+	if m.loading {
+		helpText = m.spinner.View() + " Creating cluster... • ↑/↓ j/k: scroll"
+	}
+	help := helpStyle.Render(helpText)
+	b.WriteString(help)
+
+	return baseStyle.Render(b.String())
+}
+
 // handleCreateViewKeys handles keyboard input in create view
 func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.createForm == nil {
@@ -227,19 +313,28 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "esc":
 		// Go back to previous step or cancel
-		if form.currentStep == stepProvider {
+		switch form.currentStep {
+		case stepProvider:
 			// Cancel entire form
 			m.view = listView
 			m.createForm = nil
 			m.err = nil
-		} else {
-			// Reset modification flags for current step before going back
-			switch form.currentStep {
-			case stepName:
-				form.nameModified = false
-			case stepWorkers:
-				form.workersModified = false
-			}
+		case stepLogs:
+			// From logs view, go back to list view
+			m.view = listView
+			m.createForm = nil
+			m.err = nil
+		case stepName:
+			// Reset modification flag and go back
+			form.nameModified = false
+			form.currentStep--
+			m.err = nil
+		case stepWorkers:
+			// Reset modification flag and go back
+			form.workersModified = false
+			form.currentStep--
+			m.err = nil
+		default:
 			// Go back to previous step
 			form.currentStep--
 			m.err = nil
@@ -252,14 +347,19 @@ func (m Model) handleCreateViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		return m.handleEnterKey()
 
-	case "up":
+	case "up", "k":
 		if form.currentStep == stepProvider && form.selectedProvider > 0 {
 			form.selectedProvider--
+		} else if form.currentStep == stepLogs && form.scrollOffset > 0 {
+			form.scrollOffset--
 		}
 
-	case "down":
+	case "down", "j":
 		if form.currentStep == stepProvider && form.selectedProvider < len(form.providers)-1 {
 			form.selectedProvider++
+		} else if form.currentStep == stepLogs {
+			// Allow scrolling down (renderStepLogs will clamp it)
+			form.scrollOffset++
 		}
 
 	case "backspace":
@@ -325,14 +425,23 @@ func (m Model) handleEnterKey() (tea.Model, tea.Cmd) {
 		m.err = nil
 
 	case stepReview:
-		// Create cluster
-		workers, _ := strconv.Atoi(form.workers)
-		provider := form.providers[form.selectedProvider]
+		// Immediately show logs screen
+		form.currentStep = stepLogs
+		form.logs = ""
 		m.loading = true
 		m.err = nil
 
-		// Don't clear form or switch views yet - wait for success/failure
-		return m, createClusterCmd(m.providers, provider.Name(), form.name, workers)
+		// Start cluster creation with streaming
+		workers, _ := strconv.Atoi(form.workers)
+		provider := form.providers[form.selectedProvider]
+		return m, createClusterStreamingCmd(m.providers, provider.Name(), form.name, workers)
+
+	case stepLogs:
+		// Return to list view and refresh clusters
+		m.view = listView
+		m.createForm = nil
+		m.err = nil
+		return m, loadClustersCmd(m.providers)
 	}
 
 	return m, nil

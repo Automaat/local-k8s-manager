@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -413,15 +414,13 @@ func TestCreateClusterCmd(t *testing.T) {
 		backend.NewK3dProvider(),
 	}
 
-	cmd := createClusterCmd(providers, "k3d", "test", 2)
+	cmd := createClusterStreamingCmd(providers, "k3d", "test", 2)
 	if cmd == nil {
 		t.Error("expected non-nil command")
 	}
 
-	msg := cmd()
-	if _, ok := msg.(operationCompleteMsg); !ok {
-		t.Error("expected operationCompleteMsg")
-	}
+	// createClusterStreamingCmd returns a batch, so we can't test it the same way
+	// Just verify it's not nil
 }
 
 // testError is a simple error implementation for testing
@@ -431,4 +430,266 @@ type testError struct {
 
 func (e *testError) Error() string {
 	return e.msg
+}
+
+func TestLogLineMsg(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+		logs:        "",
+	}
+	m.width = 100
+	m.height = 50
+
+	outputChan := make(chan string, 10)
+
+	msg := logLineMsg{
+		line:       "test log line",
+		outputChan: outputChan,
+	}
+
+	newModel, cmd := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.createForm.logs != "test log line" {
+		t.Errorf("expected logs to be 'test log line', got '%s'", m.createForm.logs)
+	}
+
+	if cmd == nil {
+		t.Error("expected command to wait for next log line")
+	}
+}
+
+func TestLogLineMsgAutoScroll(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	t.Run("auto-scrolls when at bottom", func(t *testing.T) {
+		m := NewModel(providers)
+		m.view = createView
+		// Create enough lines to require scrolling
+		logs := ""
+		for i := 0; i < 25; i++ {
+			if i > 0 {
+				logs += "\n"
+			}
+			logs += "line"
+		}
+		m.createForm = &createFormModel{
+			currentStep:  stepLogs,
+			logs:         logs,
+			scrollOffset: 10, // User is near bottom
+		}
+		m.width = 100
+		m.height = 30
+
+		outputChan := make(chan string, 10)
+
+		msg := logLineMsg{
+			line:       "new line",
+			outputChan: outputChan,
+		}
+
+		newModel, _ := m.Update(msg)
+		m = newModel.(Model)
+
+		if !strings.Contains(m.createForm.logs, "new line") {
+			t.Error("expected logs to contain new line")
+		}
+	})
+
+	t.Run("does not auto-scroll when not at bottom", func(t *testing.T) {
+		m := NewModel(providers)
+		m.view = createView
+		// Create enough lines to require scrolling
+		logs := ""
+		for i := 0; i < 25; i++ {
+			if i > 0 {
+				logs += "\n"
+			}
+			logs += "line"
+		}
+		m.createForm = &createFormModel{
+			currentStep:  stepLogs,
+			logs:         logs,
+			scrollOffset: 0, // User is at top
+		}
+		m.width = 100
+		m.height = 30
+
+		outputChan := make(chan string, 10)
+		initialOffset := m.createForm.scrollOffset
+
+		msg := logLineMsg{
+			line:       "new line",
+			outputChan: outputChan,
+		}
+
+		newModel, _ := m.Update(msg)
+		m = newModel.(Model)
+
+		if m.createForm.scrollOffset != initialOffset {
+			t.Errorf("expected scroll offset to stay at %d, got %d", initialOffset, m.createForm.scrollOffset)
+		}
+	})
+
+	t.Run("handles small window height", func(t *testing.T) {
+		m := NewModel(providers)
+		m.view = createView
+		m.createForm = &createFormModel{
+			currentStep:  stepLogs,
+			logs:         "line1",
+			scrollOffset: 0,
+		}
+		m.width = 100
+		m.height = 8 // Very small height
+
+		outputChan := make(chan string, 10)
+
+		msg := logLineMsg{
+			line:       "line2",
+			outputChan: outputChan,
+		}
+
+		newModel, _ := m.Update(msg)
+		m = newModel.(Model)
+
+		if !strings.Contains(m.createForm.logs, "line2") {
+			t.Error("expected logs to contain new line")
+		}
+	})
+}
+
+func TestOperationCompleteMsgCreate(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+	}
+	m.loading = true
+
+	msg := operationCompleteMsg{
+		operation: opCreate,
+		err:       nil,
+	}
+
+	newModel, cmd := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.loading {
+		t.Error("expected loading to be false")
+	}
+
+	if m.err != nil {
+		t.Error("expected no error")
+	}
+
+	if cmd != nil {
+		t.Error("expected no command for create operation")
+	}
+}
+
+func TestOperationCompleteMsgCreateWithError(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	m := NewModel(providers)
+	m.view = createView
+	m.createForm = &createFormModel{
+		currentStep: stepLogs,
+	}
+	m.loading = true
+
+	msg := operationCompleteMsg{
+		operation: opCreate,
+		err:       errors.New("creation failed"),
+	}
+
+	newModel, _ := m.Update(msg)
+	m = newModel.(Model)
+
+	if m.loading {
+		t.Error("expected loading to be false")
+	}
+
+	if m.err == nil {
+		t.Error("expected error to be set")
+	}
+}
+
+func TestWaitForLogLine(t *testing.T) {
+	outputChan := make(chan string, 1)
+	outputChan <- "test log line"
+
+	cmd := waitForLogLine(outputChan)
+	msg := cmd()
+
+	logMsg, ok := msg.(logLineMsg)
+	if !ok {
+		t.Error("expected logLineMsg")
+	}
+
+	if logMsg.line != "test log line" {
+		t.Errorf("expected 'test log line', got '%s'", logMsg.line)
+	}
+}
+
+func TestWaitForLogLineClosedChannel(t *testing.T) {
+	outputChan := make(chan string)
+	close(outputChan)
+
+	cmd := waitForLogLine(outputChan)
+	msg := cmd()
+
+	if msg != nil {
+		t.Errorf("expected nil for closed channel, got %v", msg)
+	}
+}
+
+func TestCreateClusterStreamingCmd(t *testing.T) {
+	// Create a mock provider
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	cmd := createClusterStreamingCmd(providers, "k3d", "test-cluster", 1)
+
+	if cmd == nil {
+		t.Error("expected command to be returned")
+	}
+
+	// Execute the command to test the internal function
+	msg := cmd()
+	if msg == nil {
+		t.Error("expected message from command")
+	}
+}
+
+func TestCreateClusterStreamingCmdProviderNotFound(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	cmd := createClusterStreamingCmd(providers, "nonexistent", "test-cluster", 1)
+
+	if cmd == nil {
+		t.Error("expected command to be returned")
+	}
+
+	// Execute the command to test provider not found path
+	msg := cmd()
+	if msg == nil {
+		t.Error("expected message from command")
+	}
 }

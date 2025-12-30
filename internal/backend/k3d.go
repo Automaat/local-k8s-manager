@@ -86,24 +86,35 @@ func (p *K3dProvider) List() ([]models.Cluster, error) {
 }
 
 // Create creates a new k3d cluster
-func (p *K3dProvider) Create(name string, opts CreateOptions) error {
+func (p *K3dProvider) Create(name string, opts CreateOptions, outputChan ...chan<- string) (string, error) {
 	args := []string{"cluster", "create", name}
 	if opts.Workers > 0 {
 		args = append(args, "--agents", strconv.Itoa(opts.Workers))
 	}
 
-	output, err := Exec("k3d", args...)
-	if err != nil {
-		if len(output) > 0 {
-			// Check for Docker errors first
-			if dockerErr := ParseDockerError(string(output)); dockerErr != "" {
-				return fmt.Errorf("%s", dockerErr)
-			}
-			return fmt.Errorf("failed to create k3d cluster: %s", string(output))
-		}
-		return fmt.Errorf("failed to create k3d cluster: %w", err)
+	var output []byte
+	var outputStr string
+	var err error
+
+	// Use streaming if channel provided
+	if len(outputChan) > 0 && outputChan[0] != nil {
+		outputStr, err = ExecStreaming("k3d", args, outputChan[0])
+	} else {
+		output, err = Exec("k3d", args...)
+		outputStr = string(output)
 	}
-	return nil
+
+	if err != nil {
+		if len(outputStr) > 0 {
+			// Check for Docker errors first
+			if dockerErr := ParseDockerError(outputStr); dockerErr != "" {
+				return outputStr, fmt.Errorf("%s", dockerErr)
+			}
+			return outputStr, fmt.Errorf("failed to create k3d cluster: %s", outputStr)
+		}
+		return outputStr, fmt.Errorf("failed to create k3d cluster: %w", err)
+	}
+	return outputStr, nil
 }
 
 // Delete deletes a k3d cluster

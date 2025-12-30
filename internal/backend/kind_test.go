@@ -118,8 +118,9 @@ var _ = Describe("KindProvider", func() {
 				return []byte("success"), nil
 			}
 
-			err := provider.Create("test-cluster", backend.CreateOptions{})
+			output, err := provider.Create("test-cluster", backend.CreateOptions{})
 			Expect(err).NotTo(HaveOccurred())
+			Expect(output).To(Equal("success"))
 		})
 
 		It("should return error on failure", func() {
@@ -127,8 +128,9 @@ var _ = Describe("KindProvider", func() {
 				return nil, errors.New("failed")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal(""))
 		})
 
 		It("should return Docker error when Docker daemon is not running", func() {
@@ -136,8 +138,9 @@ var _ = Describe("KindProvider", func() {
 				return []byte("Cannot connect to the Docker daemon"), errors.New("exit status 1")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal("Cannot connect to the Docker daemon"))
 			Expect(err.Error()).To(ContainSubstring("Docker is not running"))
 		})
 
@@ -146,8 +149,9 @@ var _ = Describe("KindProvider", func() {
 				return []byte("cluster name already exists"), errors.New("exit status 1")
 			}
 
-			err := provider.Create("test", backend.CreateOptions{})
+			output, err := provider.Create("test", backend.CreateOptions{})
 			Expect(err).To(HaveOccurred())
+			Expect(output).To(Equal("cluster name already exists"))
 			Expect(err.Error()).To(ContainSubstring("cluster name already exists"))
 		})
 	})
