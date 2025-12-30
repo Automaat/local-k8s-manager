@@ -555,3 +555,57 @@ func TestOperationCompleteMsgCreateWithError(t *testing.T) {
 		t.Error("expected error to be set")
 	}
 }
+
+func TestWaitForLogLine(t *testing.T) {
+	outputChan := make(chan string, 1)
+	outputChan <- "test log line"
+
+	cmd := waitForLogLine(outputChan)
+	msg := cmd()
+
+	logMsg, ok := msg.(logLineMsg)
+	if !ok {
+		t.Error("expected logLineMsg")
+	}
+
+	if logMsg.line != "test log line" {
+		t.Errorf("expected 'test log line', got '%s'", logMsg.line)
+	}
+}
+
+func TestWaitForLogLineClosedChannel(t *testing.T) {
+	outputChan := make(chan string)
+	close(outputChan)
+
+	cmd := waitForLogLine(outputChan)
+	msg := cmd()
+
+	if msg != nil {
+		t.Errorf("expected nil for closed channel, got %v", msg)
+	}
+}
+
+func TestCreateClusterStreamingCmd(t *testing.T) {
+	// Create a mock provider
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	cmd := createClusterStreamingCmd(providers, "k3d", "test-cluster", 1)
+
+	if cmd == nil {
+		t.Error("expected command to be returned")
+	}
+}
+
+func TestCreateClusterStreamingCmdProviderNotFound(t *testing.T) {
+	providers := []backend.Provider{
+		backend.NewK3dProvider(),
+	}
+
+	cmd := createClusterStreamingCmd(providers, "nonexistent", "test-cluster", 1)
+
+	if cmd == nil {
+		t.Error("expected command to be returned")
+	}
+}
