@@ -72,6 +72,8 @@ type logLineMsg struct {
 	outputChan <-chan string
 }
 
+type autoCloseLogsMsg struct{}
+
 // NewModel creates a new TUI model
 func NewModel(providers []backend.Provider) Model {
 	s := spinner.New()
@@ -137,6 +139,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// We're already on logs screen showing streamed output
 			// Just stop loading indicator and set error if any
 			m.err = msg.err
+
+			// If successful, auto-close logs after 2 seconds
+			if msg.err == nil {
+				return m, autoCloseLogsCmd()
+			}
 			return m, nil
 		} else {
 			// For other operations, just set error
@@ -144,6 +151,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return m, loadClustersCmd(m.providers)
+
+	case autoCloseLogsMsg:
+		// Close logs and return to list view
+		if m.view == createView && m.createForm != nil && m.createForm.currentStep == stepLogs {
+			m.view = listView
+			m.createForm = nil
+			m.err = nil
+			return m, loadClustersCmd(m.providers)
+		}
+		return m, nil
 
 	case logLineMsg:
 		// Append log line to the current form logs
@@ -400,6 +417,13 @@ func waitForLogLine(outputChan <-chan string) tea.Cmd {
 		}
 		return logLineMsg{line: line, outputChan: outputChan}
 	}
+}
+
+// autoCloseLogsCmd creates a command that waits 2 seconds then closes logs
+func autoCloseLogsCmd() tea.Cmd {
+	return tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+		return autoCloseLogsMsg{}
+	})
 }
 
 // renderError renders an error message
