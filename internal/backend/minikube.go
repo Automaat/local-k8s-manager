@@ -58,6 +58,20 @@ func (p *MinikubeProvider) List() ([]models.Cluster, error) {
 		// Try to parse anyway, might have valid profiles with errors
 	}
 
+	// minikube may output error messages to stderr which get mixed with JSON
+	// Find the start of the JSON object and only parse from there
+	jsonStart := 0
+	for i, b := range output {
+		if b == '{' {
+			jsonStart = i
+			break
+		}
+	}
+
+	if jsonStart > 0 {
+		output = output[jsonStart:]
+	}
+
 	var profileList minikubeProfileList
 	if err := json.Unmarshal(output, &profileList); err != nil {
 		return nil, fmt.Errorf("failed to parse minikube output: %w", err)
@@ -82,7 +96,7 @@ func (p *MinikubeProvider) List() ([]models.Cluster, error) {
 
 func parseMinikubeStatus(status string) models.Status {
 	switch status {
-	case "Running":
+	case "Running", "OK":
 		return models.StatusRunning
 	case "Stopped":
 		return models.StatusStopped
