@@ -721,6 +721,18 @@ func TestAutoCloseLogsMsgNotOnLogsStep(t *testing.T) {
 	}
 }
 
+func TestAutoCloseLogsCmd(t *testing.T) {
+	cmd := autoCloseLogsCmd()
+	if cmd == nil {
+		t.Error("expected non-nil command")
+	}
+
+	msg := cmd()
+	if _, ok := msg.(autoCloseLogsMsg); !ok {
+		t.Error("expected autoCloseLogsMsg")
+	}
+}
+
 func TestWaitForLogLine(t *testing.T) {
 	outputChan := make(chan string, 1)
 	outputChan <- "test log line"
