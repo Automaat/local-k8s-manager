@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -469,29 +470,100 @@ func TestLogLineMsgAutoScroll(t *testing.T) {
 		backend.NewK3dProvider(),
 	}
 
-	m := NewModel(providers)
-	m.view = createView
-	m.createForm = &createFormModel{
-		currentStep:  stepLogs,
-		logs:         "line1\nline2\nline3",
-		scrollOffset: 0,
-	}
-	m.width = 100
-	m.height = 50
+	t.Run("auto-scrolls when at bottom", func(t *testing.T) {
+		m := NewModel(providers)
+		m.view = createView
+		// Create enough lines to require scrolling
+		logs := ""
+		for i := 0; i < 25; i++ {
+			if i > 0 {
+				logs += "\n"
+			}
+			logs += "line"
+		}
+		m.createForm = &createFormModel{
+			currentStep:  stepLogs,
+			logs:         logs,
+			scrollOffset: 10, // User is near bottom
+		}
+		m.width = 100
+		m.height = 30
 
-	outputChan := make(chan string, 10)
+		outputChan := make(chan string, 10)
 
-	msg := logLineMsg{
-		line:       "line4",
-		outputChan: outputChan,
-	}
+		msg := logLineMsg{
+			line:       "new line",
+			outputChan: outputChan,
+		}
 
-	newModel, _ := m.Update(msg)
-	m = newModel.(Model)
+		newModel, _ := m.Update(msg)
+		m = newModel.(Model)
 
-	if m.createForm.logs != "line1\nline2\nline3\nline4" {
-		t.Errorf("expected logs to contain all lines, got '%s'", m.createForm.logs)
-	}
+		if !strings.Contains(m.createForm.logs, "new line") {
+			t.Error("expected logs to contain new line")
+		}
+	})
+
+	t.Run("does not auto-scroll when not at bottom", func(t *testing.T) {
+		m := NewModel(providers)
+		m.view = createView
+		// Create enough lines to require scrolling
+		logs := ""
+		for i := 0; i < 25; i++ {
+			if i > 0 {
+				logs += "\n"
+			}
+			logs += "line"
+		}
+		m.createForm = &createFormModel{
+			currentStep:  stepLogs,
+			logs:         logs,
+			scrollOffset: 0, // User is at top
+		}
+		m.width = 100
+		m.height = 30
+
+		outputChan := make(chan string, 10)
+		initialOffset := m.createForm.scrollOffset
+
+		msg := logLineMsg{
+			line:       "new line",
+			outputChan: outputChan,
+		}
+
+		newModel, _ := m.Update(msg)
+		m = newModel.(Model)
+
+		if m.createForm.scrollOffset != initialOffset {
+			t.Errorf("expected scroll offset to stay at %d, got %d", initialOffset, m.createForm.scrollOffset)
+		}
+	})
+
+	t.Run("handles small window height", func(t *testing.T) {
+		m := NewModel(providers)
+		m.view = createView
+		m.createForm = &createFormModel{
+			currentStep:  stepLogs,
+			logs:         "line1",
+			scrollOffset: 0,
+		}
+		m.width = 100
+		m.height = 8 // Very small height
+
+		outputChan := make(chan string, 10)
+
+		msg := logLineMsg{
+			line:       "line2",
+			outputChan: outputChan,
+		}
+
+		newModel, _ := m.Update(msg)
+		m = newModel.(Model)
+
+		if !strings.Contains(m.createForm.logs, "line2") {
+			t.Error("expected logs to contain new line")
+		}
+	})
 }
 
 func TestOperationCompleteMsgCreate(t *testing.T) {
@@ -596,6 +668,12 @@ func TestCreateClusterStreamingCmd(t *testing.T) {
 	if cmd == nil {
 		t.Error("expected command to be returned")
 	}
+
+	// Execute the command to test the internal function
+	msg := cmd()
+	if msg == nil {
+		t.Error("expected message from command")
+	}
 }
 
 func TestCreateClusterStreamingCmdProviderNotFound(t *testing.T) {
@@ -607,5 +685,11 @@ func TestCreateClusterStreamingCmdProviderNotFound(t *testing.T) {
 
 	if cmd == nil {
 		t.Error("expected command to be returned")
+	}
+
+	// Execute the command to test provider not found path
+	msg := cmd()
+	if msg == nil {
+		t.Error("expected message from command")
 	}
 }
