@@ -55,13 +55,40 @@ var _ = Describe("MinikubeProvider", func() {
 
 	Describe("List", func() {
 		Context("when command succeeds", func() {
-			It("should return list of clusters", func() {
+			It("should return list of clusters with Running status", func() {
 				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
 					response := map[string]interface{}{
 						"valid": []map[string]interface{}{
 							{
 								"Name":   "test-cluster",
 								"Status": "Running",
+								"Config": map[string]interface{}{
+									"Nodes": []map[string]interface{}{
+										{"Name": "node1"},
+										{"Name": "node2"},
+									},
+								},
+							},
+						},
+					}
+					return json.Marshal(response)
+				}
+
+				clusters, err := provider.List()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(clusters).To(HaveLen(1))
+				Expect(clusters[0].Name).To(Equal("test-cluster"))
+				Expect(clusters[0].Status).To(Equal(models.StatusRunning))
+				Expect(clusters[0].Nodes).To(Equal(2))
+			})
+
+			It("should return list of clusters with OK status", func() {
+				mockExecutor.ExecFunc = func(name string, args ...string) ([]byte, error) {
+					response := map[string]interface{}{
+						"valid": []map[string]interface{}{
+							{
+								"Name":   "test-cluster",
+								"Status": "OK",
 								"Config": map[string]interface{}{
 									"Nodes": []map[string]interface{}{
 										{"Name": "node1"},
