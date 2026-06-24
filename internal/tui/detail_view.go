@@ -41,7 +41,7 @@ func (m Model) renderDetailView() string {
 			value = StatusStyle(string(m.selectedCluster.Status)).Render(value)
 		}
 
-		b.WriteString(fmt.Sprintf("%s %s\n", label, value))
+		fmt.Fprintf(&b, "%s %s\n", label, value)
 	}
 
 	b.WriteString("\n")
