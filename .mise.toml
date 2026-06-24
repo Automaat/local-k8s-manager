@@ -1,7 +1,7 @@
 [tools]
 go = "1.26.4"
 golangci-lint = "2.8.0"
-goreleaser = "2.6.1"
+goreleaser = "2.16.0"
 "go:go.uber.org/nilaway/cmd/nilaway" = "0.0.0-20251208195206-89df5f7e6199"
 
 [tasks.test]
