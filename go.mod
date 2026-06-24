@@ -4,7 +4,7 @@ go 1.24.9
 
 require (
 	github.com/charmbracelet/bubbles v0.21.1
-	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/charmbracelet/bubbletea/v2 v2.0.7
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/onsi/ginkgo/v2 v2.27.5
 	github.com/onsi/gomega v1.39.0
