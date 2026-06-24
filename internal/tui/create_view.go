@@ -90,7 +90,7 @@ func (m Model) renderStepProvider() string {
 			providerLine := selectedStyle.Render(fmt.Sprintf("%s%s", prefix, p.Name()))
 			b.WriteString(providerLine)
 		} else {
-			b.WriteString(fmt.Sprintf("%s%s", prefix, p.Name()))
+			fmt.Fprintf(&b, "%s%s", prefix, p.Name())
 		}
 		b.WriteString("\n")
 	}
@@ -192,17 +192,17 @@ func (m Model) renderStepReview() string {
 	// Provider
 	b.WriteString(headerStyle.Render("Provider:"))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", form.providers[form.selectedProvider].Name()))
+	fmt.Fprintf(&b, "  %s\n\n", form.providers[form.selectedProvider].Name())
 
 	// Cluster Name
 	b.WriteString(headerStyle.Render("Cluster Name:"))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", form.name))
+	fmt.Fprintf(&b, "  %s\n\n", form.name)
 
 	// Worker Nodes
 	b.WriteString(headerStyle.Render("Worker Nodes:"))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("  %s\n\n", form.workers))
+	fmt.Fprintf(&b, "  %s\n\n", form.workers)
 
 	// Error message
 	if m.err != nil {
