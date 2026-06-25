@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea/v2 v2.0.7
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/onsi/ginkgo/v2 v2.32.0
-	github.com/onsi/gomega v1.40.0
+	github.com/onsi/gomega v1.42.1
 )
 
 require (
