@@ -3,7 +3,7 @@ module github.com/automaat/local-k8s-manager
 go 1.25.0
 
 require (
-	github.com/charmbracelet/bubbles v0.21.1
+	github.com/charmbracelet/bubbles/v2 v2.1.0
 	github.com/charmbracelet/bubbletea/v2 v2.0.7
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/onsi/ginkgo/v2 v2.32.0
